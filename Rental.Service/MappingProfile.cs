@@ -1,0 +1,32 @@
+using AutoMapper;
+using MyProject.Core.DTOs;
+using MyProject.Core.Entities;
+
+namespace MyProject.Services
+{
+    public class MappingProfile : Profile
+    {
+        public MappingProfile()
+        {
+            CreateMap<Feature, FeatureDto>();
+
+            CreateMap<Car, CarDto>();
+            // התכונות משויכות ב-Service לפי FeatureIds
+            CreateMap<CarRequestDto, Car>()
+                .ForMember(c => c.Features, o => o.Ignore());
+            // ה-RowVersion מהלקוח נקבע כערך המקורי דרך ה-Repository, לא נדרס כערך חדש
+            CreateMap<CarUpdateDto, Car>()
+                .ForMember(c => c.Features, o => o.Ignore())
+                .ForMember(c => c.RowVersion, o => o.Ignore());
+
+            CreateMap<Customer, CustomerDto>();
+            CreateMap<CustomerRequestDto, Customer>();
+
+            // CarModel, CarLicenseNumber ו-CustomerName ממופים אוטומטית (flattening)
+            CreateMap<Rental, RentalDto>()
+                .ForMember(d => d.CarFeatures, o => o.MapFrom(r => r.Car.Features.Select(f => f.Name)))
+                .ForMember(d => d.TotalPrice, o => o.MapFrom(r => (r.DateEnd.Date - r.DateStart.Date).Days * r.Car.Price));
+            CreateMap<RentalRequestDto, Rental>();
+        }
+    }
+}
