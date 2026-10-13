@@ -1,3 +1,4 @@
+using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using MyProject.Core.DTOs;
 using MyProject.Core.Exceptions;
@@ -43,7 +44,15 @@ namespace MyProject.Data
                 // ה-RowVersion בשורה כבר לא תואם למה שקראנו - מישהו אחר שמר לפנינו
                 throw new ConcurrencyConflictException("The row was modified by another user", ex);
             }
+            catch (DbUpdateException ex) when (ex.InnerException is SqlException { Number: 2601 or 2627 })
+            {
+                // 2601/2627 - הפרה של אינדקס ייחודי או של מפתח ראשי
+                throw new DuplicateKeyException("A row with the same unique value already exists", ex);
+            }
         }
+
+        public async Task<ITransaction> BeginTransactionAsync(CancellationToken ct) =>
+            new EfTransaction(await Context.Database.BeginTransactionAsync(ct));
 
         protected static async Task<PagedResult<T>> ToPagedResultAsync(
             IQueryable<T> query, PagingParameters paging, CancellationToken ct)

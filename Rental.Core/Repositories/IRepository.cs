@@ -13,7 +13,11 @@ namespace MyProject.Core.Interfaces
         void Remove(T entity);
 
         // שומר את כל השינויים של הבקשה בטרנזקציה אחת.
-        // זורק ConcurrencyConflictException אם שורה שונתה בינתיים על ידי מישהו אחר
+        // זורק ConcurrencyConflictException אם שורה שונתה בינתיים על ידי מישהו אחר,
+        // ו-DuplicateKeyException אם נשמר ערך שכבר קיים באינדקס ייחודי
         Task SaveChangesAsync(CancellationToken ct);
+
+        // פותח טרנזקציה מפורשת, כדי שבדיקה עסקית והשמירה שאחריה ירוצו באותה טרנזקציה
+        Task<ITransaction> BeginTransactionAsync(CancellationToken ct);
     }
 }

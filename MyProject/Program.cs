@@ -1,5 +1,6 @@
 using System.Text;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
@@ -74,10 +75,37 @@ try
                 ValidateLifetime = true,
                 ClockSkew = TimeSpan.FromMinutes(1)
             };
+
+            // ברירת המחדל מחזירה 401/403 עם גוף ריק. כאן הם מקבלים את אותו מבנה JSON כמו שאר השגיאות
+            options.Events = new JwtBearerEvents
+            {
+                OnChallenge = context =>
+                {
+                    context.HandleResponse();
+                    return ProblemResponse.WriteAsync(context.HttpContext, StatusCodes.Status401Unauthorized,
+                        "נדרשת התחברות", "יש להתחבר ולשלוח token תקף ב-header Authorization.");
+                },
+                OnForbidden = context =>
+                    ProblemResponse.WriteAsync(context.HttpContext, StatusCodes.Status403Forbidden,
+                        "אין הרשאה", "לתפקיד שלך אין הרשאה לפעולה הזאת.")
+            };
         });
     builder.Services.AddAuthorization();
 
-    builder.Services.AddControllers();
+    builder.Services.AddControllers().ConfigureApiBehaviorOptions(options =>
+    {
+        // תשובת 400 האוטומטית של ModelState, עם traceId שתואם ל-CorrelationId
+        options.InvalidModelStateResponseFactory = context =>
+        {
+            var problem = new ValidationProblemDetails(context.ModelState)
+            {
+                Status = StatusCodes.Status400BadRequest,
+                Title = "אחד או יותר מהשדות אינם תקינים"
+            };
+            problem.Extensions["traceId"] = context.HttpContext.TraceIdentifier;
+            return new BadRequestObjectResult(problem) { ContentTypes = { "application/problem+json" } };
+        };
+    });
     builder.Services.AddEndpointsApiExplorer();
     builder.Services.AddSwaggerGen(options =>
     {

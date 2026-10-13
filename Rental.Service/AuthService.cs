@@ -1,6 +1,7 @@
 using Microsoft.Extensions.Logging;
 using MyProject.Core.DTOs;
 using MyProject.Core.Entities;
+using MyProject.Core.Exceptions;
 using MyProject.Core.Interfaces;
 using MyProject.Core.Results;
 
@@ -55,7 +56,16 @@ namespace MyProject.Services
                 Customer = customer
             };
             _users.Add(user);
-            await _users.SaveChangesAsync(ct);
+            try
+            {
+                await _users.SaveChangesAsync(ct);
+            }
+            catch (DuplicateKeyException)
+            {
+                // שתי הרשמות מקבילות עם אותו אימייל או רישיון. הבדיקה למעלה עברה אצל שתיהן
+                _logger.LogWarning("Registration conflict: the same email or driver license was registered concurrently");
+                return Result<AuthResponseDto>.Conflict("כבר קיים משתמש עם האימייל או רישיון הנהיגה האלה");
+            }
 
             // לא כותבים ללוג את פרטי ההרשמה, רק את המזהה
             _logger.LogInformation("User {UserId} registered", user.Id);

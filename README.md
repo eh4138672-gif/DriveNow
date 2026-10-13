@@ -14,11 +14,13 @@
   1. טוענת את הרכב.
   2. בודקת שאין השכרה חופפת.
   3. מוסיפה את ההשכרה ומעדכנת את השדה `LastBookedAt` של הרכב.
-- `SaveChanges` מריץ את ה-INSERT של ההשכרה ואת ה-UPDATE של הרכב **באותה טרנזקציה**, וה-UPDATE כולל `WHERE RowVersion = <הערך שנקרא>`.
+- בדיקת החפיפה והשמירה רצות בתוך **טרנזקציה מפורשת אחת** (`BeginTransactionAsync`). אם יוצאים ממנה בלי `Commit`, הכול מתבטל.
+- `SaveChanges` מריץ את ה-INSERT של ההשכרה ואת ה-UPDATE של הרכב באותה טרנזקציה, וה-UPDATE כולל `WHERE RowVersion = <הערך שנקרא>`.
 - אם הזמנה מקבילה נשמרה בינתיים, ה-RowVersion כבר השתנה. ה-UPDATE לא מוצא שורה, EF זורק `DbUpdateConcurrencyException`, וכל הטרנזקציה מתבטלת, כולל ה-INSERT.
 - ה-Repository עוטף את החריגה ב-`ConcurrencyConflictException` מ-Core, כדי ששכבת ה-Service לא תהיה תלויה ב-EF.
 - ה-Service מחזיר **409 Conflict** עם הודעה ברורה, וההתנגשות נכתבת ללוג ברמת Warning.
 - גם עדכון רכב מוגן: הלקוח שולח את ה-RowVersion שקרא. אם הרכב השתנה מאז, מוחזר 409.
+- גם ביטול השכרה ועדכון או מחיקה של לקוח שמתנגשים עם משתמש אחר מחזירים 409. אותו דבר קורה בשתי הרשמות מקבילות עם אותו אימייל: האינדקס הייחודי דוחה את השנייה, וה-Repository עוטף את השגיאה ב-`DuplicateKeyException`.
 
 **ההוכחה:** ב-[Rental.Tests/ConcurrencyTests.cs](Rental.Tests/ConcurrencyTests.cs) יש שלוש בדיקות:
 1. שני `DbContext` נפרדים קוראים את אותו רכב ומשנים אותו. הראשון שומר בהצלחה, והשני מקבל `DbUpdateConcurrencyException`.

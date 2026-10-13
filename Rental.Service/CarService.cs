@@ -63,7 +63,15 @@ namespace MyProject.Services
             var car = _mapper.Map<Car>(dto);
             car.Features = features;
             _cars.Add(car);
-            await _cars.SaveChangesAsync(ct);
+            try
+            {
+                await _cars.SaveChangesAsync(ct);
+            }
+            catch (DuplicateKeyException)
+            {
+                _logger.LogWarning("Car create conflict: license number {LicenseNumber} was saved concurrently", dto.LicenseNumber);
+                return Result<CarDto>.Conflict($"כבר קיים רכב עם מספר רישוי {dto.LicenseNumber}");
+            }
 
             _logger.LogInformation("Car {CarId} created", car.Id);
             return Result<CarDto>.Success(_mapper.Map<CarDto>(car));
@@ -103,6 +111,11 @@ namespace MyProject.Services
             {
                 _logger.LogWarning("Concurrency conflict updating car {CarId}", id);
                 return Result.Conflict("הרכב עודכן על ידי משתמש אחר מאז שנטען. טען אותו מחדש ונסה שוב.");
+            }
+            catch (DuplicateKeyException)
+            {
+                _logger.LogWarning("Car update conflict: license number {LicenseNumber} was saved concurrently", dto.LicenseNumber);
+                return Result.Conflict($"כבר קיים רכב עם מספר רישוי {dto.LicenseNumber}");
             }
 
             return Result.Success();

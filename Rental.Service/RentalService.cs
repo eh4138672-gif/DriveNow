@@ -14,8 +14,8 @@ namespace MyProject.Services
     // 1. טוענים את הרכב עם ה-RowVersion שלו - לפני בדיקת החפיפה.
     // 2. בודקים שאין השכרה חופפת.
     // 3. מוסיפים את ההשכרה ומעדכנים את LastBookedAt של הרכב.
-    // 4. SaveChanges מריץ INSERT של ההשכרה ו-UPDATE של הרכב באותה טרנזקציה,
-    //    וה-UPDATE כולל WHERE RowVersion = הערך שקראנו בשלב 1.
+    // 4. SaveChanges מריץ INSERT של ההשכרה ו-UPDATE של הרכב, וה-UPDATE כולל
+    //    WHERE RowVersion = הערך שקראנו בשלב 1. שלבים 2-4 רצים בטרנזקציה מפורשת אחת.
     // אם הזמנה אחרת נשמרה אחרי שלב 1, היא שינתה את ה-RowVersion של הרכב, ה-UPDATE שלנו
     // לא מוצא שורה, וכל הטרנזקציה (כולל ה-INSERT) מתבטלת. אם היא נשמרה לפני שלב 1,
     // בדיקת החפיפה בשלב 2 כבר רואה אותה. בשני המקרים רק הזמנה אחת מצליחה.
@@ -50,6 +50,11 @@ namespace MyProject.Services
         {
             if (!_currentUser.IsAdmin)
             {
+                // משתמש שאינו מנהל ואינו מקושר ללקוח לא רואה אף השכרה
+                if (_currentUser.CustomerId == null)
+                {
+                    return new PagedResult<RentalDto>(new List<RentalDto>(), query.Page, query.PageSize, 0);
+                }
                 query.CustomerId = _currentUser.CustomerId;
             }
 
@@ -135,7 +140,15 @@ namespace MyProject.Services
             }
 
             _rentals.Remove(rental);
-            await _rentals.SaveChangesAsync(ct);
+            try
+            {
+                await _rentals.SaveChangesAsync(ct);
+            }
+            catch (ConcurrencyConflictException)
+            {
+                _logger.LogWarning("Cancel conflict on rental {RentalId}: it was changed or removed by another user", id);
+                return Result.Conflict("ההשכרה שונתה או בוטלה על ידי משתמש אחר. רענן ונסה שוב.");
+            }
             _logger.LogInformation("Rental {RentalId} cancelled", id);
             return Result.Success();
         }
@@ -164,6 +177,9 @@ namespace MyProject.Services
 
             var start = dto.DateStart.Date;
             var end = dto.DateEnd.Date;
+
+            // בדיקת החפיפה והשמירה רצות באותה טרנזקציה. יציאה בלי Commit מבטלת הכול
+            await using var transaction = await _rentals.BeginTransactionAsync(ct);
 
             // שלב 2: בדיקת זמינות
             _logger.LogDebug("Checking availability of car {CarId} for {Start:yyyy-MM-dd} - {End:yyyy-MM-dd}", car.Id, start, end);
@@ -203,6 +219,7 @@ namespace MyProject.Services
                     car.Id, start, end);
                 return Result<Rental>.Conflict("הרכב נתפס על ידי משתמש אחר ממש עכשיו. בחר תאריכים אחרים או נסה שוב.");
             }
+            await transaction.CommitAsync(ct);
 
             return Result<Rental>.Success(rental);
         }

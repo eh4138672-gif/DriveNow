@@ -14,3 +14,10 @@ rental-client/
 
 ## הגדרות מקומיות של Claude Code
 .claude/
+
+## סודות וקובצי סביבה
+.env
+*.env
+secrets.json
+appsettings.*.local.json
+node_modules/

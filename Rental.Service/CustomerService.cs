@@ -1,6 +1,8 @@
 using AutoMapper;
+using Microsoft.Extensions.Logging;
 using MyProject.Core.DTOs;
 using MyProject.Core.Entities;
+using MyProject.Core.Exceptions;
 using MyProject.Core.Interfaces;
 using MyProject.Core.Results;
 
@@ -11,12 +13,14 @@ namespace MyProject.Services
         private readonly ICustomerRepository _customers;
         private readonly IRentalRepository _rentals;
         private readonly IMapper _mapper;
+        private readonly ILogger<CustomerService> _logger;
 
-        public CustomerService(ICustomerRepository customers, IRentalRepository rentals, IMapper mapper)
+        public CustomerService(ICustomerRepository customers, IRentalRepository rentals, IMapper mapper, ILogger<CustomerService> logger)
         {
             _customers = customers;
             _rentals = rentals;
             _mapper = mapper;
+            _logger = logger;
         }
 
         public async Task<PagedResult<CustomerDto>> GetAllAsync(CustomerQueryParameters query, CancellationToken ct)
@@ -42,7 +46,11 @@ namespace MyProject.Services
 
             var customer = _mapper.Map<Customer>(dto);
             _customers.Add(customer);
-            await _customers.SaveChangesAsync(ct);
+            var saved = await SaveAsync(ct);
+            if (!saved.IsSuccess)
+            {
+                return Result<CustomerDto>.FromFailure(saved);
+            }
 
             return Result<CustomerDto>.Success(_mapper.Map<CustomerDto>(customer));
         }
@@ -60,8 +68,7 @@ namespace MyProject.Services
             }
 
             _mapper.Map(dto, customer);
-            await _customers.SaveChangesAsync(ct);
-            return Result.Success();
+            return await SaveAsync(ct);
         }
 
         public async Task<Result> DeleteAsync(int id, CancellationToken ct)
@@ -77,8 +84,27 @@ namespace MyProject.Services
             }
 
             _customers.Remove(customer);
-            await _customers.SaveChangesAsync(ct);
-            return Result.Success();
+            return await SaveAsync(ct);
+        }
+
+        // שמירה שמתרגמת התנגשות עם משתמש אחר ל-409 במקום 500
+        private async Task<Result> SaveAsync(CancellationToken ct)
+        {
+            try
+            {
+                await _customers.SaveChangesAsync(ct);
+                return Result.Success();
+            }
+            catch (ConcurrencyConflictException)
+            {
+                _logger.LogWarning("Customer save conflict: the customer was changed or removed by another user");
+                return Result.Conflict("הלקוח שונה או נמחק על ידי משתמש אחר. רענן ונסה שוב.");
+            }
+            catch (DuplicateKeyException)
+            {
+                _logger.LogWarning("Customer save conflict: the same driver license was saved concurrently");
+                return Result.Conflict("כבר קיים לקוח עם רישיון הנהיגה הזה");
+            }
         }
     }
 }

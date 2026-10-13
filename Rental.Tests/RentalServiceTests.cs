@@ -17,6 +17,7 @@ namespace Rental.Tests
         private readonly Mock<ICarRepository> _cars = new();
         private readonly Mock<ICustomerRepository> _customers = new();
         private readonly Mock<ICurrentUser> _currentUser = new();
+        private readonly Mock<ITransaction> _transaction = new();
         private readonly IMapper _mapper = new MapperConfiguration(c => c.AddProfile<MappingProfile>()).CreateMapper();
         private readonly Car _car = new() { Id = 1, Model = "Mazda 3", LicenseNumber = "123-45-678", Price = 100 };
 
@@ -28,6 +29,7 @@ namespace Rental.Tests
 
             _cars.Setup(r => r.GetForUpdateAsync(_car.Id, It.IsAny<CancellationToken>())).ReturnsAsync(_car);
             _customers.Setup(r => r.ExistsAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(true);
+            _rentals.Setup(r => r.BeginTransactionAsync(It.IsAny<CancellationToken>())).ReturnsAsync(_transaction.Object);
             _rentals.Setup(r => r.GetByIdAsync(It.IsAny<int>(), It.IsAny<CancellationToken>()))
                 .ReturnsAsync((int id, CancellationToken _) => new MyProject.Core.Entities.Rental
                 {
@@ -69,6 +71,7 @@ namespace Rental.Tests
             Assert.NotNull(_car.LastBookedAt);
             _rentals.Verify(r => r.Add(It.Is<MyProject.Core.Entities.Rental>(x => x.CarId == _car.Id)), Times.Once);
             _rentals.Verify(r => r.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
+            _transaction.Verify(t => t.CommitAsync(It.IsAny<CancellationToken>()), Times.Once);
         }
 
         [Fact]
@@ -81,6 +84,7 @@ namespace Rental.Tests
             Assert.Equal(ResultStatus.Conflict, result.Status);
             _rentals.Verify(r => r.Add(It.IsAny<MyProject.Core.Entities.Rental>()), Times.Never);
             _rentals.Verify(r => r.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Never);
+            _transaction.Verify(t => t.CommitAsync(It.IsAny<CancellationToken>()), Times.Never);
         }
 
         [Fact]
@@ -93,6 +97,33 @@ namespace Rental.Tests
             var result = await CreateService().CreateAsync(Request(), default);
 
             Assert.Equal(ResultStatus.Conflict, result.Status);
+            // הטרנזקציה לא נסגרת ב-Commit, ולכן היא מתבטלת
+            _transaction.Verify(t => t.CommitAsync(It.IsAny<CancellationToken>()), Times.Never);
+            _transaction.Verify(t => t.DisposeAsync(), Times.Once);
+        }
+
+        [Fact]
+        public async Task Delete_RentalRemovedConcurrently_ReturnsConflict()
+        {
+            var rental = new MyProject.Core.Entities.Rental { Id = 5, CarId = 1, CustomerId = 1 };
+            _rentals.Setup(r => r.GetForUpdateAsync(5, It.IsAny<CancellationToken>())).ReturnsAsync(rental);
+            _rentals.Setup(r => r.SaveChangesAsync(It.IsAny<CancellationToken>()))
+                .ThrowsAsync(new ConcurrencyConflictException("conflict", new Exception()));
+
+            var result = await CreateService().DeleteAsync(5, default);
+
+            Assert.Equal(ResultStatus.Conflict, result.Status);
+        }
+
+        [Fact]
+        public async Task GetAll_NonAdminWithoutCustomer_ReturnsEmptyPage()
+        {
+            _currentUser.Setup(u => u.CustomerId).Returns((int?)null);
+
+            var page = await CreateService().GetAllAsync(new RentalQueryParameters(), default);
+
+            Assert.Empty(page.Items);
+            _rentals.Verify(r => r.GetPagedAsync(It.IsAny<RentalQueryParameters>(), It.IsAny<CancellationToken>()), Times.Never);
         }
 
         [Fact]

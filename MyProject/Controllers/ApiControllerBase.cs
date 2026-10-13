@@ -19,7 +19,14 @@ namespace MyProject.Controllers
                 _ => StatusCodes.Status400BadRequest
             };
 
-            return Problem(detail: result.Error, statusCode: statusCode);
+            var response = Problem(detail: result.Error, statusCode: statusCode);
+
+            // traceId זהה ל-CorrelationId שבלוגים וב-header, כדי שאפשר יהיה לאתר את הבקשה
+            if (response.Value is ProblemDetails problem)
+            {
+                problem.Extensions["traceId"] = HttpContext.TraceIdentifier;
+            }
+            return response;
         }
     }
 }
