@@ -66,7 +66,7 @@ dotnet run --project MyProject --launch-profile MyProject
 
 **כתובות:**
 - Swagger: https://localhost:7017/swagger. כדי לבדוק endpoints מוגנים, מתחברים דרך `/api/auth/login` ומדביקים את ה-token בכפתור **Authorize**.
-- הלקוח (repository נפרד): http://localhost:5173. ה-proxy שלו מפנה ל-`https://localhost:7017`.
+- הלקוח ([repository נפרד](https://github.com/eh4138672-gif/DriveNow-client)): http://localhost:5173. ה-proxy שלו מפנה ל-`https://localhost:7017`.
 
 **3. הבדיקות:** הן יוצרות ומוחקות בעצמן בסיס נתונים נפרד, `RentalDb_Tests`.
 
