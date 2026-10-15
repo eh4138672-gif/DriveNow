@@ -9,7 +9,7 @@ using MyProject.Data;
 using MyProject.Services;
 using Xunit;
 
-namespace Rental.Tests
+namespace MyProject.Tests
 {
     public class ConcurrencyTests : IClassFixture<TestDatabaseFixture>
     {

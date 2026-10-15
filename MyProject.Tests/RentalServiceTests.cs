@@ -9,7 +9,7 @@ using MyProject.Core.Results;
 using MyProject.Services;
 using Xunit;
 
-namespace Rental.Tests
+namespace MyProject.Tests
 {
     public class RentalServiceTests
     {

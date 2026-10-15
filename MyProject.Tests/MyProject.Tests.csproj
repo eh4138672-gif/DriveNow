@@ -10,9 +10,9 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\Rental.Core\Rental.Core.csproj" />
-    <ProjectReference Include="..\Rental.Data\Rental.Data.csproj" />
-    <ProjectReference Include="..\Rental.Service\Rental.Service.csproj" />
+    <ProjectReference Include="..\MyProject.Core\MyProject.Core.csproj" />
+    <ProjectReference Include="..\MyProject.Data\MyProject.Data.csproj" />
+    <ProjectReference Include="..\MyProject.Service\MyProject.Service.csproj" />
   </ItemGroup>
 
   <ItemGroup>

@@ -32,7 +32,7 @@ try
     {
         throw new InvalidOperationException(
             "ConnectionStrings:RentalDb is missing. Set it with: " +
-            "dotnet user-secrets set \"ConnectionStrings:RentalDb\" \"Host=localhost;Database=rentaldb;Username=postgres;Password=...\" --project MyProject");
+            "dotnet user-secrets set \"ConnectionStrings:RentalDb\" \"Host=localhost;Database=rentaldb;Username=postgres;Password=...\" --project MyProject.API");
     }
     builder.Services.AddDbContext<DataContext>(options =>
         options.UseNpgsql(PostgresConnectionString.Normalize(connectionString)));
@@ -65,7 +65,7 @@ try
     {
         throw new InvalidOperationException(
             "Jwt:Key is missing or shorter than 32 characters. Set it with: " +
-            "dotnet user-secrets set \"Jwt:Key\" \"<random key>\" --project MyProject");
+            "dotnet user-secrets set \"Jwt:Key\" \"<random key>\" --project MyProject.API");
     }
 
     builder.Services

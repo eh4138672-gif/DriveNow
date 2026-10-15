@@ -4,7 +4,7 @@
     <TargetFramework>net6.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
-    <!-- הקוד יושב ב-MyProject.Data. בלי זה, migrations חדשים נוצרים ב-Rental.Data.Migrations,
+    <!-- הקוד יושב ב-MyProject.Data. בלי זה, migrations חדשים נוצרים ב-namespace לפי שם הפרויקט,
          וה-namespace "Rental" מתנגש במחלקה Rental -->
     <RootNamespace>MyProject.Data</RootNamespace>
   </PropertyGroup>
@@ -24,7 +24,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\Rental.Core\Rental.Core.csproj" />
+    <ProjectReference Include="..\MyProject.Core\MyProject.Core.csproj" />
   </ItemGroup>
 
 </Project>

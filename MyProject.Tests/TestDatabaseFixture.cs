@@ -2,7 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using MyProject.Core.Entities;
 using MyProject.Data;
 
-namespace Rental.Tests
+namespace MyProject.Tests
 {
     // בסיס נתונים נפרד לבדיקות, על PostgreSQL אמיתי. בדיקות ה-concurrency צריכות שני חיבורים
     // נפרדים לאותה שורה, ולכן הן לא יכולות לרוץ על InMemory.
