@@ -11,12 +11,12 @@ namespace MyProject.Services
     // המשאב המוגבל במערכת: רכב בטווח תאריכים. אסור ששתי השכרות של אותו רכב יחפפו.
     //
     // איך נמנעת התנגשות בין שתי הזמנות מקבילות (optimistic concurrency):
-    // 1. טוענים את הרכב עם ה-RowVersion שלו - לפני בדיקת החפיפה.
+    // 1. טוענים את הרכב עם ה-Version שלו (concurrency token) - לפני בדיקת החפיפה.
     // 2. בודקים שאין השכרה חופפת.
     // 3. מוסיפים את ההשכרה ומעדכנים את LastBookedAt של הרכב.
     // 4. SaveChanges מריץ INSERT של ההשכרה ו-UPDATE של הרכב, וה-UPDATE כולל
-    //    WHERE RowVersion = הערך שקראנו בשלב 1. שלבים 2-4 רצים בטרנזקציה מפורשת אחת.
-    // אם הזמנה אחרת נשמרה אחרי שלב 1, היא שינתה את ה-RowVersion של הרכב, ה-UPDATE שלנו
+    //    WHERE Version = הערך שקראנו בשלב 1. שלבים 2-4 רצים בטרנזקציה מפורשת אחת.
+    // אם הזמנה אחרת נשמרה אחרי שלב 1, היא שינתה את ה-Version של הרכב, ה-UPDATE שלנו
     // לא מוצא שורה, וכל הטרנזקציה (כולל ה-INSERT) מתבטלת. אם היא נשמרה לפני שלב 1,
     // בדיקת החפיפה בשלב 2 כבר רואה אותה. בשני המקרים רק הזמנה אחת מצליחה.
     //
@@ -184,7 +184,7 @@ namespace MyProject.Services
         // יוצר השכרה חדשה (rentalId == null) או מעדכן קיימת, תוך שמירה על הרכב כמשאב מוגבל
         private async Task<Result<Rental>> TryBookAsync(RentalRequestDto dto, int? rentalId, CancellationToken ct)
         {
-            // שלב 1: הרכב נטען עם מעקב, וה-RowVersion שלו נשמר כערך המקורי
+            // שלב 1: הרכב נטען עם מעקב, וה-Version שלו נשמר כערך המקורי
             var car = await _cars.GetForUpdateAsync(dto.CarId, ct);
             if (car == null)
             {
@@ -230,7 +230,7 @@ namespace MyProject.Services
             rental.DateStart = start;
             rental.DateEnd = end;
 
-            // נוגעים ברכב כדי שה-UPDATE שלו (עם בדיקת ה-RowVersion) ייכנס לאותה טרנזקציה
+            // נוגעים ברכב כדי שה-UPDATE שלו (עם בדיקת ה-Version) ייכנס לאותה טרנזקציה
             car.LastBookedAt = DateTime.UtcNow;
 
             // שלב 4

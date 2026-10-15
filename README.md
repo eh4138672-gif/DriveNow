@@ -1,6 +1,6 @@
 # DriveNow - שרת להשכרת רכבים
 
-שרת ASP.NET Core Web API לניהול השכרת רכבים. לקוחות נרשמים, מחפשים רכב לפי דגם, מחיר ותכונות, ומזמינים אותו לטווח תאריכים. מנהל מנהל את צי הרכבים ואת הלקוחות, ורואה את כל ההזמנות. המערכת בנויה בארבע שכבות (Core, Data, Service, API), עובדת מול SQL Server דרך EF Core, ומאובטחת ב-JWT עם שני תפקידים.
+שרת ASP.NET Core Web API לניהול השכרת רכבים. לקוחות נרשמים, מחפשים רכב לפי דגם, מחיר ותכונות, ומזמינים אותו לטווח תאריכים. מנהל מנהל את צי הרכבים ואת הלקוחות, ורואה את כל ההזמנות. המערכת בנויה בארבע שכבות (Core, Data, Service, API), עובדת מול PostgreSQL דרך EF Core (Npgsql), ומאובטחת ב-JWT עם שני תפקידים.
 
 ## המשאב המוגבל והתחרות עליו
 
@@ -9,17 +9,17 @@
 **איפה התחרות:** שני לקוחות מזמינים את אותו רכב לאותם תאריכים באותו רגע. שתי הבקשות קוראות את הרכב, שתיהן בודקות ורואות שהוא פנוי, ושתיהן מנסות לשמור. בלי הגנה, שתיהן יקבלו אישור.
 
 **איך המערכת מגיבה (optimistic concurrency):**
-- לישות `Car` יש עמודת `RowVersion` מסוג `rowversion`, שמתעדכנת אוטומטית בכל שינוי בשורה.
+- לישות `Car` יש concurrency token בשם `Version` (`Guid`, מוגדר `IsConcurrencyToken()` ב-Fluent API). ב-PostgreSQL אין `rowversion`, ולכן זה token שהמערכת מנהלת בעצמה: `DataContext` דורס את `SaveChanges` ומחליף את ה-`Version` של כל רכב שנוסף או השתנה, כך שאף שירות לא צריך לזכור לעשות את זה.
 - הזמנה (`RentalService.TryBookAsync`):
   1. טוענת את הרכב.
   2. בודקת שאין השכרה חופפת.
   3. מוסיפה את ההשכרה ומעדכנת את השדה `LastBookedAt` של הרכב.
 - בדיקת החפיפה והשמירה רצות בתוך **טרנזקציה מפורשת אחת** (`BeginTransactionAsync`). אם יוצאים ממנה בלי `Commit`, הכול מתבטל.
-- `SaveChanges` מריץ את ה-INSERT של ההשכרה ואת ה-UPDATE של הרכב באותה טרנזקציה, וה-UPDATE כולל `WHERE RowVersion = <הערך שנקרא>`.
-- אם הזמנה מקבילה נשמרה בינתיים, ה-RowVersion כבר השתנה. ה-UPDATE לא מוצא שורה, EF זורק `DbUpdateConcurrencyException`, וכל הטרנזקציה מתבטלת, כולל ה-INSERT.
+- `SaveChanges` מריץ את ה-INSERT של ההשכרה ואת ה-UPDATE של הרכב באותה טרנזקציה, וה-UPDATE כולל `WHERE "Version" = <הערך שנקרא>`.
+- אם הזמנה מקבילה נשמרה בינתיים, ה-Version כבר השתנה. ה-UPDATE לא מוצא שורה, EF זורק `DbUpdateConcurrencyException`, וכל הטרנזקציה מתבטלת, כולל ה-INSERT.
 - ה-Repository עוטף את החריגה ב-`ConcurrencyConflictException` מ-Core, כדי ששכבת ה-Service לא תהיה תלויה ב-EF.
 - ה-Service מחזיר **409 Conflict** עם הודעה ברורה, וההתנגשות נכתבת ללוג ברמת Warning.
-- גם עדכון רכב מוגן: הלקוח שולח את ה-RowVersion שקרא. אם הרכב השתנה מאז, מוחזר 409.
+- גם עדכון רכב מוגן: הלקוח שולח את ה-Version שקרא. אם הרכב השתנה מאז, מוחזר 409.
 - גם ביטול השכרה ועדכון או מחיקה של לקוח שמתנגשים עם משתמש אחר מחזירים 409. אותו דבר קורה בשתי הרשמות מקבילות עם אותו אימייל: האינדקס הייחודי דוחה את השנייה, וה-Repository עוטף את השגיאה ב-`DuplicateKeyException`.
 
 **ההוכחה:** ב-[Rental.Tests/ConcurrencyTests.cs](Rental.Tests/ConcurrencyTests.cs) יש שלוש בדיקות:
@@ -37,18 +37,21 @@
 | `Rental.Data` | `DataContext`, Repositories, Migrations | Core |
 | `Rental.Service` | לוגיקה עסקית, AutoMapper, hash לסיסמאות | Core |
 | `MyProject` (API) | Controllers, Middleware, JWT, `Program.cs` | Core, Service, ו-Data לרישום בלבד |
-| `Rental.Tests` | xUnit ו-Moq, ובדיקות concurrency על LocalDB | כולם |
+| `Rental.Tests` | xUnit ו-Moq, ובדיקות concurrency על PostgreSQL אמיתי | כולם |
 
 ## הרצה מקומית
 
 **דרישות:**
 - .NET SDK 6 ומעלה. הפרויקט מכוון ל-net6.0, ורץ גם על 8 ו-10 בזכות `RollForward`.
-- SQL Server LocalDB. מגיע עם Visual Studio, וה-instance הוא `MSSQLLocalDB`.
+- PostgreSQL 13 ומעלה, שרץ מקומית (למשל PostgreSQL 16 מ-https://www.postgresql.org/download/windows/, פורט 5432).
 
-**1. מפתח ה-JWT ב-User Secrets.** זו פעולה חד-פעמית, כי המפתח לא נמצא ב-repo:
+**1. סודות ב-User Secrets.** פעולה חד-פעמית, כי הם לא נמצאים ב-repo:
 
 ```bash
 dotnet user-secrets set "Jwt:Key" "<מחרוזת אקראית של 32 תווים לפחות>" --project MyProject
+```
+```bash
+dotnet user-secrets set "ConnectionStrings:RentalDb" "Host=localhost;Port=5432;Database=rentaldb;Username=postgres;Password=<הסיסמה של postgres>" --project MyProject
 ```
 
 **2. הרצת השרת:**
@@ -58,7 +61,7 @@ dotnet run --project MyProject --launch-profile MyProject
 ```
 
 בהפעלה הראשונה השרת:
-- יוצר את בסיס הנתונים `RentalDb` ומריץ את כל ה-migrations.
+- יוצר את בסיס הנתונים `rentaldb` ומריץ את ה-migrations (`InitialSchema` לטבלאות, `SeedData` לנתוני ההתחלה).
 - מכניס נתוני התחלה: רכבים, לקוחות, תכונות והשכרות.
 - יוצר את משתמשי הדמו.
 
@@ -68,11 +71,27 @@ dotnet run --project MyProject --launch-profile MyProject
 - Swagger: https://localhost:7017/swagger. כדי לבדוק endpoints מוגנים, מתחברים דרך `/api/auth/login` ומדביקים את ה-token בכפתור **Authorize**.
 - הלקוח ([repository נפרד](https://github.com/eh4138672-gif/DriveNow-client)): http://localhost:5173. ה-proxy שלו מפנה ל-`https://localhost:7017`.
 
-**3. הבדיקות:** הן יוצרות ומוחקות בעצמן בסיס נתונים נפרד, `RentalDb_Tests`.
+**3. הבדיקות:** בדיקות ה-concurrency יוצרות ומוחקות בעצמן בסיס נתונים נפרד. את מחרוזת החיבור אליו קובעים במשתנה הסביבה `RENTAL_TEST_DB`:
 
+```bash
+setx RENTAL_TEST_DB "Host=localhost;Port=5432;Database=rentaldb_tests;Username=postgres;Password=<הסיסמה של postgres>"
+```
 ```bash
 dotnet test
 ```
+
+## העלאה לענן (Render)
+
+1. **בסיס נתונים:** ב-Render, ‏New ← Postgres, ‏Free. אחרי היצירה מעתיקים את ה-**Internal Database URL**.
+2. **השרת:** ‏New ← Web Service ← ה-repository הזה, ‏Language: Docker (יש `Dockerfile` בשורש), ‏Free. משתני סביבה:
+   - `ConnectionStrings__RentalDb`: ה-Internal Database URL (השרת ממיר בעצמו כתובת `postgres://...` לפורמט של Npgsql).
+   - `Jwt__Key`: ערך אקראי (כפתור Generate).
+   - `DemoUsers__0__Email`, `DemoUsers__0__Password`, `DemoUsers__0__Role` = `Admin`: מנהל עם סיסמה פרטית.
+   - `Swagger__Enabled` = `true` (אופציונלי).
+   - `Cors__AllowedOrigins__0`: כתובת הלקוח ב-Render.
+3. **הלקוח:** ‏New ← Static Site ← ה-repository של הלקוח. ‏Build: `npm ci && npm run build`, ‏Publish directory: `dist`, ומשתנה `VITE_API_URL` = כתובת השרת.
+
+ה-migrations רצים אוטומטית בעליית השרת, כך שאין צורך בפעולה ידנית בבסיס הנתונים.
 
 ## משתמשי דמו
 

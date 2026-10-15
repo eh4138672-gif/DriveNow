@@ -62,7 +62,7 @@ namespace MyProject.Services
                 return Result.Success();
             }
 
-            // השינוי מעדכן את ה-RowVersion, ולכן הזמנה שרצה במקביל ייכשל עם 409 במקום להיכנס לרכב שהוצא
+            // השינוי מעדכן את ה-Version, ולכן הזמנה שרצה במקביל ייכשל עם 409 במקום להיכנס לרכב שהוצא
             car.IsActive = isActive;
             try
             {
@@ -135,7 +135,7 @@ namespace MyProject.Services
             {
                 car.Features.Add(feature);
             }
-            _cars.SetOriginalRowVersion(car, dto.RowVersion);
+            _cars.SetOriginalVersion(car, dto.Version!.Value);
 
             try
             {

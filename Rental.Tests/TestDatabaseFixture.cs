@@ -4,22 +4,30 @@ using MyProject.Data;
 
 namespace Rental.Tests
 {
-    // בסיס נתונים נפרד לבדיקות, על LocalDB. rowversion קיים רק ב-SQL Server,
-    // ולכן בדיקות ה-concurrency לא יכולות לרוץ על InMemory
+    // בסיס נתונים נפרד לבדיקות, על PostgreSQL אמיתי. בדיקות ה-concurrency צריכות שני חיבורים
+    // נפרדים לאותה שורה, ולכן הן לא יכולות לרוץ על InMemory.
+    // מחרוזת החיבור נקראת ממשתנה הסביבה RENTAL_TEST_DB (ראו README), כדי שהסיסמה לא תהיה בקוד
     public class TestDatabaseFixture : IDisposable
     {
-        private const string ConnectionString =
-            @"Server=(localdb)\MSSQLLocalDB;Database=RentalDb_Tests;Trusted_Connection=True;TrustServerCertificate=True";
+        public const string ConnectionStringVariable = "RENTAL_TEST_DB";
+
+        private readonly string _connectionString;
 
         public TestDatabaseFixture()
         {
+            _connectionString = Environment.GetEnvironmentVariable(ConnectionStringVariable)
+                ?? Environment.GetEnvironmentVariable(ConnectionStringVariable, EnvironmentVariableTarget.User)
+                ?? throw new InvalidOperationException(
+                    $"Set the {ConnectionStringVariable} environment variable to a PostgreSQL connection string " +
+                    "for a test database, e.g. Host=localhost;Database=rentaldb_tests;Username=postgres;Password=...");
+
             using var context = CreateContext();
             context.Database.EnsureDeleted();
             context.Database.Migrate();
         }
 
         public DataContext CreateContext() =>
-            new(new DbContextOptionsBuilder<DataContext>().UseSqlServer(ConnectionString).Options);
+            new(new DbContextOptionsBuilder<DataContext>().UseNpgsql(_connectionString).Options);
 
         // יוצר רכב חדש לכל בדיקה, כדי שהבדיקות לא ישפיעו זו על זו
         public async Task<int> CreateCarAsync()

@@ -2,94 +2,74 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
-using Microsoft.EntityFrameworkCore.Metadata;
 using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using MyProject.Data;
+using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
 #nullable disable
 
 namespace MyProject.Data.Migrations
 {
     [DbContext(typeof(DataContext))]
-    [Migration("20261011213246_AddUsersAndFeatures")]
-    partial class AddUsersAndFeatures
+    [Migration("20261015173330_InitialSchema")]
+    partial class InitialSchema
     {
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
                 .HasAnnotation("ProductVersion", "6.0.36")
-                .HasAnnotation("Relational:MaxIdentifierLength", 128);
+                .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
-            SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder, 1L, 1);
+            NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
             modelBuilder.Entity("CarFeatures", b =>
                 {
                     b.Property<int>("CarId")
-                        .HasColumnType("int");
+                        .HasColumnType("integer");
 
                     b.Property<int>("FeatureId")
-                        .HasColumnType("int");
+                        .HasColumnType("integer");
 
                     b.HasKey("CarId", "FeatureId");
 
                     b.HasIndex("FeatureId");
 
                     b.ToTable("CarFeatures");
-
-                    b.HasData(
-                        new
-                        {
-                            CarId = 1,
-                            FeatureId = 1
-                        },
-                        new
-                        {
-                            CarId = 1,
-                            FeatureId = 5
-                        },
-                        new
-                        {
-                            CarId = 2,
-                            FeatureId = 1
-                        },
-                        new
-                        {
-                            CarId = 2,
-                            FeatureId = 3
-                        });
                 });
 
             modelBuilder.Entity("MyProject.Core.Entities.Car", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
+                        .HasColumnType("integer");
 
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"), 1L, 1);
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+                    NpgsqlPropertyBuilderExtensions.HasIdentityOptions(b.Property<int>("Id"), 1000L, null, null, null, null, null);
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean");
 
                     b.Property<DateTime?>("LastBookedAt")
-                        .HasColumnType("datetime2");
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("LicenseNumber")
                         .IsRequired()
                         .HasMaxLength(20)
-                        .HasColumnType("nvarchar(20)");
+                        .HasColumnType("character varying(20)");
 
                     b.Property<string>("Model")
                         .IsRequired()
                         .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)");
+                        .HasColumnType("character varying(50)");
 
-                    b.Property<int>("Price")
-                        .HasColumnType("int");
+                    b.Property<int>("PricePerHour")
+                        .HasColumnType("integer");
 
-                    b.Property<byte[]>("RowVersion")
+                    b.Property<Guid>("Version")
                         .IsConcurrencyToken()
-                        .IsRequired()
-                        .ValueGeneratedOnAddOrUpdate()
-                        .HasColumnType("rowversion");
+                        .HasColumnType("uuid");
 
                     b.HasKey("Id");
 
@@ -97,46 +77,31 @@ namespace MyProject.Data.Migrations
                         .IsUnique();
 
                     b.ToTable("Cars");
-
-                    b.HasData(
-                        new
-                        {
-                            Id = 1,
-                            LicenseNumber = "123-45-678",
-                            Model = "Mazda 3",
-                            Price = 200
-                        },
-                        new
-                        {
-                            Id = 2,
-                            LicenseNumber = "987-65-432",
-                            Model = "Toyota Corolla",
-                            Price = 220
-                        });
                 });
 
             modelBuilder.Entity("MyProject.Core.Entities.Customer", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
+                        .HasColumnType("integer");
 
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"), 1L, 1);
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+                    NpgsqlPropertyBuilderExtensions.HasIdentityOptions(b.Property<int>("Id"), 1000L, null, null, null, null, null);
 
                     b.Property<string>("DriverLicenseId")
                         .IsRequired()
                         .HasMaxLength(9)
-                        .HasColumnType("nvarchar(9)");
+                        .HasColumnType("character varying(9)");
 
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)");
+                        .HasColumnType("character varying(100)");
 
                     b.Property<string>("PhoneNumber")
                         .IsRequired()
                         .HasMaxLength(15)
-                        .HasColumnType("nvarchar(15)");
+                        .HasColumnType("character varying(15)");
 
                     b.HasKey("Id");
 
@@ -144,36 +109,21 @@ namespace MyProject.Data.Migrations
                         .IsUnique();
 
                     b.ToTable("Customers");
-
-                    b.HasData(
-                        new
-                        {
-                            Id = 1,
-                            DriverLicenseId = "99887766",
-                            Name = "ישראל ישראלי",
-                            PhoneNumber = "050-1234567"
-                        },
-                        new
-                        {
-                            Id = 2,
-                            DriverLicenseId = "11223344",
-                            Name = "דנה כהן",
-                            PhoneNumber = "052-7654321"
-                        });
                 });
 
             modelBuilder.Entity("MyProject.Core.Entities.Feature", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
+                        .HasColumnType("integer");
 
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"), 1L, 1);
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+                    NpgsqlPropertyBuilderExtensions.HasIdentityOptions(b.Property<int>("Id"), 1000L, null, null, null, null, null);
 
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(30)
-                        .HasColumnType("nvarchar(30)");
+                        .HasColumnType("character varying(30)");
 
                     b.HasKey("Id");
 
@@ -181,54 +131,28 @@ namespace MyProject.Data.Migrations
                         .IsUnique();
 
                     b.ToTable("Features");
-
-                    b.HasData(
-                        new
-                        {
-                            Id = 1,
-                            Name = "אוטומטי"
-                        },
-                        new
-                        {
-                            Id = 2,
-                            Name = "חשמלי"
-                        },
-                        new
-                        {
-                            Id = 3,
-                            Name = "היברידי"
-                        },
-                        new
-                        {
-                            Id = 4,
-                            Name = "7 מקומות"
-                        },
-                        new
-                        {
-                            Id = 5,
-                            Name = "GPS"
-                        });
                 });
 
             modelBuilder.Entity("MyProject.Core.Entities.Rental", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
+                        .HasColumnType("integer");
 
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"), 1L, 1);
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+                    NpgsqlPropertyBuilderExtensions.HasIdentityOptions(b.Property<int>("Id"), 1000L, null, null, null, null, null);
 
                     b.Property<int>("CarId")
-                        .HasColumnType("int");
+                        .HasColumnType("integer");
 
                     b.Property<int>("CustomerId")
-                        .HasColumnType("int");
+                        .HasColumnType("integer");
 
                     b.Property<DateTime>("DateEnd")
-                        .HasColumnType("datetime2");
+                        .HasColumnType("timestamp without time zone");
 
                     b.Property<DateTime>("DateStart")
-                        .HasColumnType("datetime2");
+                        .HasColumnType("timestamp without time zone");
 
                     b.HasKey("Id");
 
@@ -237,57 +161,38 @@ namespace MyProject.Data.Migrations
                     b.HasIndex("CarId", "DateStart", "DateEnd");
 
                     b.ToTable("Rentals");
-
-                    b.HasData(
-                        new
-                        {
-                            Id = 1,
-                            CarId = 1,
-                            CustomerId = 1,
-                            DateEnd = new DateTime(2026, 10, 6, 0, 0, 0, 0, DateTimeKind.Unspecified),
-                            DateStart = new DateTime(2026, 10, 1, 0, 0, 0, 0, DateTimeKind.Unspecified)
-                        },
-                        new
-                        {
-                            Id = 2,
-                            CarId = 2,
-                            CustomerId = 2,
-                            DateEnd = new DateTime(2026, 10, 9, 0, 0, 0, 0, DateTimeKind.Unspecified),
-                            DateStart = new DateTime(2026, 10, 3, 0, 0, 0, 0, DateTimeKind.Unspecified)
-                        });
                 });
 
             modelBuilder.Entity("MyProject.Core.Entities.User", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
+                        .HasColumnType("integer");
 
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"), 1L, 1);
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
                     b.Property<int?>("CustomerId")
-                        .HasColumnType("int");
+                        .HasColumnType("integer");
 
                     b.Property<string>("Email")
                         .IsRequired()
                         .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)");
+                        .HasColumnType("character varying(100)");
 
                     b.Property<string>("PasswordHash")
                         .IsRequired()
                         .HasMaxLength(200)
-                        .HasColumnType("nvarchar(200)");
+                        .HasColumnType("character varying(200)");
 
                     b.Property<string>("Role")
                         .IsRequired()
                         .HasMaxLength(20)
-                        .HasColumnType("nvarchar(20)");
+                        .HasColumnType("character varying(20)");
 
                     b.HasKey("Id");
 
                     b.HasIndex("CustomerId")
-                        .IsUnique()
-                        .HasFilter("[CustomerId] IS NOT NULL");
+                        .IsUnique();
 
                     b.HasIndex("Email")
                         .IsUnique();

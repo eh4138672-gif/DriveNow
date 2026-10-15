@@ -26,8 +26,16 @@ try
 
     // DbContext הוא scoped: מופע אחד לכל בקשה, משותף ל-Repositories של אותה בקשה.
     // לכן גם ה-Repositories וה-Services הם scoped - singleton שמחזיק DbContext היה משתף אותו בין בקשות
+    // PostgreSQL. בפיתוח מחרוזת החיבור נמצאת ב-User Secrets, ובענן במשתנה סביבה ConnectionStrings__RentalDb
+    var connectionString = builder.Configuration.GetConnectionString("RentalDb");
+    if (string.IsNullOrWhiteSpace(connectionString))
+    {
+        throw new InvalidOperationException(
+            "ConnectionStrings:RentalDb is missing. Set it with: " +
+            "dotnet user-secrets set \"ConnectionStrings:RentalDb\" \"Host=localhost;Database=rentaldb;Username=postgres;Password=...\" --project MyProject");
+    }
     builder.Services.AddDbContext<DataContext>(options =>
-        options.UseSqlServer(builder.Configuration.GetConnectionString("RentalDb")));
+        options.UseNpgsql(PostgresConnectionString.Normalize(connectionString)));
 
     builder.Services.AddScoped<ICarRepository, CarRepository>();
     builder.Services.AddScoped<ICustomerRepository, CustomerRepository>();

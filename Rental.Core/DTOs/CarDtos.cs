@@ -12,7 +12,7 @@ namespace MyProject.Core.DTOs
         public List<FeatureDto> Features { get; set; } = new();
 
         // נשלח בחזרה בעדכון, כדי לזהות שינוי שקרה מאז שהלקוח קרא את הרכב
-        public byte[] RowVersion { get; set; } = default!;
+        public Guid Version { get; set; }
     }
 
     public class CarRequestDto
@@ -34,8 +34,9 @@ namespace MyProject.Core.DTOs
 
     public class CarUpdateDto : CarRequestDto
     {
+        // ה-Version שהלקוח קרא. אם הרכב השתנה מאז, העדכון נדחה עם 409
         [Required]
-        public byte[] RowVersion { get; set; } = default!;
+        public Guid? Version { get; set; }
     }
 
     // הוצאת רכב מההשכרה או החזרתו

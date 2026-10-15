@@ -29,7 +29,9 @@ namespace MyProject.Data
 
             if (!string.IsNullOrWhiteSpace(query.Search))
             {
-                cars = cars.Where(c => c.Model.Contains(query.Search) || c.LicenseNumber.Contains(query.Search));
+                // ב-PostgreSQL ‏LIKE רגיש לאותיות גדולות/קטנות. ILIKE לא
+                var pattern = $"%{query.Search.Trim()}%";
+                cars = cars.Where(c => EF.Functions.ILike(c.Model, pattern) || EF.Functions.ILike(c.LicenseNumber, pattern));
             }
             if (query.MinPrice.HasValue)
             {
@@ -57,7 +59,7 @@ namespace MyProject.Data
         public Task<bool> LicenseNumberExistsAsync(string licenseNumber, int? excludeCarId, CancellationToken ct) =>
             Set.AnyAsync(c => c.LicenseNumber == licenseNumber && c.Id != excludeCarId, ct);
 
-        public void SetOriginalRowVersion(Car car, byte[] rowVersion) =>
-            Context.Entry(car).Property(c => c.RowVersion).OriginalValue = rowVersion;
+        public void SetOriginalVersion(Car car, Guid version) =>
+            Context.Entry(car).Property(c => c.Version).OriginalValue = version;
     }
 }

@@ -15,6 +15,32 @@ namespace MyProject.Data
         {
         }
 
+        // concurrency token מנוהל בקוד (הדרך שמתאימה ל-PostgreSQL, שאין בו rowversion):
+        // בכל שמירה של רכב שנוסף או השתנה מחליפים את ה-Version. EF שולח את הערך הישן בתנאי
+        // ה-WHERE, ולכן שמירה שמבוססת על נתון שהתיישן לא מוצאת שורה וזורקת DbUpdateConcurrencyException
+        public override int SaveChanges(bool acceptAllChangesOnSuccess)
+        {
+            RenewCarVersions();
+            return base.SaveChanges(acceptAllChangesOnSuccess);
+        }
+
+        public override Task<int> SaveChangesAsync(bool acceptAllChangesOnSuccess, CancellationToken cancellationToken = default)
+        {
+            RenewCarVersions();
+            return base.SaveChangesAsync(acceptAllChangesOnSuccess, cancellationToken);
+        }
+
+        private void RenewCarVersions()
+        {
+            foreach (var entry in ChangeTracker.Entries<Car>())
+            {
+                if (entry.State is EntityState.Added or EntityState.Modified)
+                {
+                    entry.Entity.Version = Guid.NewGuid();
+                }
+            }
+        }
+
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             modelBuilder.Entity<Car>(car =>
@@ -22,7 +48,9 @@ namespace MyProject.Data
                 car.Property(c => c.LicenseNumber).HasMaxLength(20).IsRequired();
                 car.HasIndex(c => c.LicenseNumber).IsUnique();
                 car.Property(c => c.Model).HasMaxLength(50).IsRequired();
-                car.Property(c => c.RowVersion).IsRowVersion();
+                car.Property(c => c.Version).IsConcurrencyToken();
+                // LastBookedAt נשמר ב-UTC
+                car.Property(c => c.LastBookedAt).HasColumnType("timestamp with time zone");
 
                 // many-to-many: טבלת קישור CarFeatures עם מפתח מורכב
                 car.HasMany(c => c.Features)
@@ -81,7 +109,18 @@ namespace MyProject.Data
 
                 // לבדיקת חפיפה מהירה של תאריכים לרכב
                 rental.HasIndex(r => new { r.CarId, r.DateStart, r.DateEnd });
+
+                // תאריך ושעה מקומיים, בלי אזור זמן - כפי שהם נבחרים במסך ההזמנה
+                rental.Property(r => r.DateStart).HasColumnType("timestamp without time zone");
+                rental.Property(r => r.DateEnd).HasColumnType("timestamp without time zone");
             });
+
+            // ב-PostgreSQL הכנסה עם Id מפורש (נתוני ה-Seed) לא מקדמת את מונה ה-identity.
+            // לכן המונה מתחיל ב-1000, מעל כל ה-Id-ים של ה-Seed, ורשומות חדשות לא יתנגשו בהם
+            modelBuilder.Entity<Car>().Property(c => c.Id).HasIdentityOptions(startValue: 1000);
+            modelBuilder.Entity<Customer>().Property(c => c.Id).HasIdentityOptions(startValue: 1000);
+            modelBuilder.Entity<Rental>().Property(r => r.Id).HasIdentityOptions(startValue: 1000);
+            modelBuilder.Entity<Feature>().Property(f => f.Id).HasIdentityOptions(startValue: 1000);
 
             Seed(modelBuilder);
         }
@@ -100,7 +139,8 @@ namespace MyProject.Data
                 new Feature { Id = 7, Name = "גג נפתח" },
                 new Feature { Id = 8, Name = "מצלמה אחורית" });
 
-            modelBuilder.Entity<Car>().HasData(
+            var cars = new[]
+            {
                 // מחירים לשעה. כפולות של 10, כדי שגם המחיר אחרי 10% הנחה יהיה שקל שלם
                 new Car { Id = 1, LicenseNumber = "123-45-678", Model = "Mazda 3", PricePerHour = 50 },
                 new Car { Id = 2, LicenseNumber = "987-65-432", Model = "Toyota Corolla", PricePerHour = 50 },
@@ -116,7 +156,14 @@ namespace MyProject.Data
                 new Car { Id = 109, LicenseNumber = "23-456-78", Model = "Hyundai Ioniq 5", PricePerHour = 90 },
                 new Car { Id = 110, LicenseNumber = "34-567-89", Model = "Volkswagen Golf", PricePerHour = 60 },
                 new Car { Id = 111, LicenseNumber = "45-678-91", Model = "Chevrolet Spark", PricePerHour = 30 },
-                new Car { Id = 112, LicenseNumber = "56-789-12", Model = "Seat Ibiza", PricePerHour = 40 });
+                new Car { Id = 112, LicenseNumber = "56-789-12", Model = "Seat Ibiza", PricePerHour = 40 }
+            };
+            // ערך Version קבוע לנתוני ה-Seed (ולא Guid אקראי), אחרת כל migration חדש היה "משנה" אותם
+            foreach (var car in cars)
+            {
+                car.Version = new Guid($"00000000-0000-0000-0000-{car.Id:D12}");
+            }
+            modelBuilder.Entity<Car>().HasData(cars);
 
             modelBuilder.Entity<Customer>().HasData(
                 new Customer { Id = 1, Name = "ישראל ישראלי", PhoneNumber = "050-1234567", DriverLicenseId = "99887766" },

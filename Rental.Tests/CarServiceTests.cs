@@ -87,17 +87,17 @@ namespace Rental.Tests
         }
 
         [Fact]
-        public async Task Update_StaleRowVersion_ReturnsConflict()
+        public async Task Update_StaleVersion_ReturnsConflict()
         {
             _cars.Setup(r => r.SaveChangesAsync(It.IsAny<CancellationToken>()))
                 .ThrowsAsync(new ConcurrencyConflictException("conflict", new Exception()));
-            var staleVersion = new byte[] { 1, 2, 3 };
+            var staleVersion = Guid.NewGuid();
 
             var result = await CreateService().UpdateAsync(_car.Id,
-                new CarUpdateDto { LicenseNumber = "123-45-678", Model = "Mazda 3", PricePerHour = 60, RowVersion = staleVersion }, default);
+                new CarUpdateDto { LicenseNumber = "123-45-678", Model = "Mazda 3", PricePerHour = 60, Version = staleVersion }, default);
 
             Assert.Equal(ResultStatus.Conflict, result.Status);
-            _cars.Verify(r => r.SetOriginalRowVersion(_car, staleVersion), Times.Once);
+            _cars.Verify(r => r.SetOriginalVersion(_car, staleVersion), Times.Once);
         }
 
         [Fact]

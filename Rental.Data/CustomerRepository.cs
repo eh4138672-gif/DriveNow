@@ -17,7 +17,8 @@ namespace MyProject.Data
 
             if (!string.IsNullOrWhiteSpace(query.Search))
             {
-                customers = customers.Where(c => c.Name.Contains(query.Search) || c.PhoneNumber.Contains(query.Search));
+                var pattern = $"%{query.Search.Trim()}%";
+                customers = customers.Where(c => EF.Functions.ILike(c.Name, pattern) || EF.Functions.ILike(c.PhoneNumber, pattern));
             }
 
             return ToPagedResultAsync(customers.OrderBy(c => c.Name).ThenBy(c => c.Id), query, ct);

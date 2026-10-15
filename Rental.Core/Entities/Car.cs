@@ -12,11 +12,12 @@ namespace MyProject.Core.Entities
         public bool IsActive { get; set; } = true;
 
         // מתעדכן בכל הזמנה של הרכב, כדי ששתי הזמנות מקבילות ישנו את אותה שורה
-        // ויתנגשו על ה-RowVersion
+        // ויתנגשו על ה-Version
         public DateTime? LastBookedAt { get; set; }
 
-        // concurrency token - מוגדר כ-rowversion ב-DataContext ומתעדכן אוטומטית בכל שינוי בשורה
-        public byte[] RowVersion { get; set; } = default!;
+        // concurrency token. ב-PostgreSQL אין rowversion, ולכן זה ערך שהמערכת מנהלת בעצמה:
+        // DataContext מחליף אותו בכל שמירה של הרכב, ו-EF מוסיף את הערך הישן לתנאי ה-WHERE של ה-UPDATE
+        public Guid Version { get; set; } = Guid.NewGuid();
 
         public ICollection<Rental> Rentals { get; set; } = new List<Rental>();
         public ICollection<Feature> Features { get; set; } = new List<Feature>();

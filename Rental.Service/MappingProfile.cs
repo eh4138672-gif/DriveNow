@@ -14,10 +14,10 @@ namespace MyProject.Services
             // התכונות משויכות ב-Service לפי FeatureIds
             CreateMap<CarRequestDto, Car>()
                 .ForMember(c => c.Features, o => o.Ignore());
-            // ה-RowVersion מהלקוח נקבע כערך המקורי דרך ה-Repository, לא נדרס כערך חדש
+            // ה-Version מהלקוח נקבע כערך המקורי דרך ה-Repository, לא נדרס כערך חדש
             CreateMap<CarUpdateDto, Car>()
                 .ForMember(c => c.Features, o => o.Ignore())
-                .ForMember(c => c.RowVersion, o => o.Ignore());
+                .ForMember(c => c.Version, o => o.Ignore());
 
             CreateMap<Customer, CustomerDto>();
             CreateMap<CustomerRequestDto, Customer>();

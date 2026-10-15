@@ -2,35 +2,35 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
-using Microsoft.EntityFrameworkCore.Metadata;
 using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using MyProject.Data;
+using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
 #nullable disable
 
 namespace MyProject.Data.Migrations
 {
     [DbContext(typeof(DataContext))]
-    [Migration("20261015161511_AddCarIsActive")]
-    partial class AddCarIsActive
+    [Migration("20261015173335_SeedData")]
+    partial class SeedData
     {
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
                 .HasAnnotation("ProductVersion", "6.0.36")
-                .HasAnnotation("Relational:MaxIdentifierLength", 128);
+                .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
-            SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder, 1L, 1);
+            NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
             modelBuilder.Entity("CarFeatures", b =>
                 {
                     b.Property<int>("CarId")
-                        .HasColumnType("int");
+                        .HasColumnType("integer");
 
                     b.Property<int>("FeatureId")
-                        .HasColumnType("int");
+                        .HasColumnType("integer");
 
                     b.HasKey("CarId", "FeatureId");
 
@@ -210,34 +210,33 @@ namespace MyProject.Data.Migrations
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
+                        .HasColumnType("integer");
 
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"), 1L, 1);
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+                    NpgsqlPropertyBuilderExtensions.HasIdentityOptions(b.Property<int>("Id"), 1000L, null, null, null, null, null);
 
                     b.Property<bool>("IsActive")
-                        .HasColumnType("bit");
+                        .HasColumnType("boolean");
 
                     b.Property<DateTime?>("LastBookedAt")
-                        .HasColumnType("datetime2");
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("LicenseNumber")
                         .IsRequired()
                         .HasMaxLength(20)
-                        .HasColumnType("nvarchar(20)");
+                        .HasColumnType("character varying(20)");
 
                     b.Property<string>("Model")
                         .IsRequired()
                         .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)");
+                        .HasColumnType("character varying(50)");
 
-                    b.Property<int>("Price")
-                        .HasColumnType("int");
+                    b.Property<int>("PricePerHour")
+                        .HasColumnType("integer");
 
-                    b.Property<byte[]>("RowVersion")
+                    b.Property<Guid>("Version")
                         .IsConcurrencyToken()
-                        .IsRequired()
-                        .ValueGeneratedOnAddOrUpdate()
-                        .HasColumnType("rowversion");
+                        .HasColumnType("uuid");
 
                     b.HasKey("Id");
 
@@ -253,7 +252,8 @@ namespace MyProject.Data.Migrations
                             IsActive = true,
                             LicenseNumber = "123-45-678",
                             Model = "Mazda 3",
-                            Price = 200
+                            PricePerHour = 50,
+                            Version = new Guid("00000000-0000-0000-0000-000000000001")
                         },
                         new
                         {
@@ -261,7 +261,8 @@ namespace MyProject.Data.Migrations
                             IsActive = true,
                             LicenseNumber = "987-65-432",
                             Model = "Toyota Corolla",
-                            Price = 220
+                            PricePerHour = 50,
+                            Version = new Guid("00000000-0000-0000-0000-000000000002")
                         },
                         new
                         {
@@ -269,7 +270,8 @@ namespace MyProject.Data.Migrations
                             IsActive = true,
                             LicenseNumber = "234-56-781",
                             Model = "Hyundai i20",
-                            Price = 150
+                            PricePerHour = 40,
+                            Version = new Guid("00000000-0000-0000-0000-000000000101")
                         },
                         new
                         {
@@ -277,7 +279,8 @@ namespace MyProject.Data.Migrations
                             IsActive = true,
                             LicenseNumber = "345-67-812",
                             Model = "Kia Picanto",
-                            Price = 130
+                            PricePerHour = 30,
+                            Version = new Guid("00000000-0000-0000-0000-000000000102")
                         },
                         new
                         {
@@ -285,7 +288,8 @@ namespace MyProject.Data.Migrations
                             IsActive = true,
                             LicenseNumber = "456-78-123",
                             Model = "Skoda Octavia",
-                            Price = 240
+                            PricePerHour = 60,
+                            Version = new Guid("00000000-0000-0000-0000-000000000103")
                         },
                         new
                         {
@@ -293,7 +297,8 @@ namespace MyProject.Data.Migrations
                             IsActive = true,
                             LicenseNumber = "567-81-234",
                             Model = "Tesla Model 3",
-                            Price = 420
+                            PricePerHour = 100,
+                            Version = new Guid("00000000-0000-0000-0000-000000000104")
                         },
                         new
                         {
@@ -301,7 +306,8 @@ namespace MyProject.Data.Migrations
                             IsActive = true,
                             LicenseNumber = "678-12-345",
                             Model = "Toyota RAV4 Hybrid",
-                            Price = 350
+                            PricePerHour = 80,
+                            Version = new Guid("00000000-0000-0000-0000-000000000105")
                         },
                         new
                         {
@@ -309,7 +315,8 @@ namespace MyProject.Data.Migrations
                             IsActive = true,
                             LicenseNumber = "789-23-456",
                             Model = "Kia Sorento",
-                            Price = 380
+                            PricePerHour = 80,
+                            Version = new Guid("00000000-0000-0000-0000-000000000106")
                         },
                         new
                         {
@@ -317,7 +324,8 @@ namespace MyProject.Data.Migrations
                             IsActive = true,
                             LicenseNumber = "891-34-567",
                             Model = "Mitsubishi Outlander",
-                            Price = 330
+                            PricePerHour = 70,
+                            Version = new Guid("00000000-0000-0000-0000-000000000107")
                         },
                         new
                         {
@@ -325,7 +333,8 @@ namespace MyProject.Data.Migrations
                             IsActive = true,
                             LicenseNumber = "12-345-67",
                             Model = "Suzuki Swift",
-                            Price = 140
+                            PricePerHour = 30,
+                            Version = new Guid("00000000-0000-0000-0000-000000000108")
                         },
                         new
                         {
@@ -333,7 +342,8 @@ namespace MyProject.Data.Migrations
                             IsActive = true,
                             LicenseNumber = "23-456-78",
                             Model = "Hyundai Ioniq 5",
-                            Price = 400
+                            PricePerHour = 90,
+                            Version = new Guid("00000000-0000-0000-0000-000000000109")
                         },
                         new
                         {
@@ -341,7 +351,8 @@ namespace MyProject.Data.Migrations
                             IsActive = true,
                             LicenseNumber = "34-567-89",
                             Model = "Volkswagen Golf",
-                            Price = 260
+                            PricePerHour = 60,
+                            Version = new Guid("00000000-0000-0000-0000-000000000110")
                         },
                         new
                         {
@@ -349,7 +360,8 @@ namespace MyProject.Data.Migrations
                             IsActive = true,
                             LicenseNumber = "45-678-91",
                             Model = "Chevrolet Spark",
-                            Price = 120
+                            PricePerHour = 30,
+                            Version = new Guid("00000000-0000-0000-0000-000000000111")
                         },
                         new
                         {
@@ -357,7 +369,8 @@ namespace MyProject.Data.Migrations
                             IsActive = true,
                             LicenseNumber = "56-789-12",
                             Model = "Seat Ibiza",
-                            Price = 170
+                            PricePerHour = 40,
+                            Version = new Guid("00000000-0000-0000-0000-000000000112")
                         });
                 });
 
@@ -365,24 +378,25 @@ namespace MyProject.Data.Migrations
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
+                        .HasColumnType("integer");
 
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"), 1L, 1);
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+                    NpgsqlPropertyBuilderExtensions.HasIdentityOptions(b.Property<int>("Id"), 1000L, null, null, null, null, null);
 
                     b.Property<string>("DriverLicenseId")
                         .IsRequired()
                         .HasMaxLength(9)
-                        .HasColumnType("nvarchar(9)");
+                        .HasColumnType("character varying(9)");
 
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)");
+                        .HasColumnType("character varying(100)");
 
                     b.Property<string>("PhoneNumber")
                         .IsRequired()
                         .HasMaxLength(15)
-                        .HasColumnType("nvarchar(15)");
+                        .HasColumnType("character varying(15)");
 
                     b.HasKey("Id");
 
@@ -454,14 +468,15 @@ namespace MyProject.Data.Migrations
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
+                        .HasColumnType("integer");
 
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"), 1L, 1);
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+                    NpgsqlPropertyBuilderExtensions.HasIdentityOptions(b.Property<int>("Id"), 1000L, null, null, null, null, null);
 
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(30)
-                        .HasColumnType("nvarchar(30)");
+                        .HasColumnType("character varying(30)");
 
                     b.HasKey("Id");
 
@@ -517,21 +532,22 @@ namespace MyProject.Data.Migrations
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
+                        .HasColumnType("integer");
 
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"), 1L, 1);
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+                    NpgsqlPropertyBuilderExtensions.HasIdentityOptions(b.Property<int>("Id"), 1000L, null, null, null, null, null);
 
                     b.Property<int>("CarId")
-                        .HasColumnType("int");
+                        .HasColumnType("integer");
 
                     b.Property<int>("CustomerId")
-                        .HasColumnType("int");
+                        .HasColumnType("integer");
 
                     b.Property<DateTime>("DateEnd")
-                        .HasColumnType("datetime2");
+                        .HasColumnType("timestamp without time zone");
 
                     b.Property<DateTime>("DateStart")
-                        .HasColumnType("datetime2");
+                        .HasColumnType("timestamp without time zone");
 
                     b.HasKey("Id");
 
@@ -676,33 +692,32 @@ namespace MyProject.Data.Migrations
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
+                        .HasColumnType("integer");
 
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"), 1L, 1);
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
                     b.Property<int?>("CustomerId")
-                        .HasColumnType("int");
+                        .HasColumnType("integer");
 
                     b.Property<string>("Email")
                         .IsRequired()
                         .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)");
+                        .HasColumnType("character varying(100)");
 
                     b.Property<string>("PasswordHash")
                         .IsRequired()
                         .HasMaxLength(200)
-                        .HasColumnType("nvarchar(200)");
+                        .HasColumnType("character varying(200)");
 
                     b.Property<string>("Role")
                         .IsRequired()
                         .HasMaxLength(20)
-                        .HasColumnType("nvarchar(20)");
+                        .HasColumnType("character varying(20)");
 
                     b.HasKey("Id");
 
                     b.HasIndex("CustomerId")
-                        .IsUnique()
-                        .HasFilter("[CustomerId] IS NOT NULL");
+                        .IsUnique();
 
                     b.HasIndex("Email")
                         .IsUnique();

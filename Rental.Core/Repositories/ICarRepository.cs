@@ -11,7 +11,7 @@ namespace MyProject.Core.Interfaces
         Task<Car?> GetWithFeaturesForUpdateAsync(int id, CancellationToken ct);
         Task<bool> LicenseNumberExistsAsync(string licenseNumber, int? excludeCarId, CancellationToken ct);
 
-        // קובע את ה-RowVersion שהלקוח קרא, כדי שהעדכון ייכשל אם הרכב השתנה מאז
-        void SetOriginalRowVersion(Car car, byte[] rowVersion);
+        // קובע את ה-Version שהלקוח קרא, כדי שהעדכון ייכשל אם הרכב השתנה מאז
+        void SetOriginalVersion(Car car, Guid version);
     }
 }
