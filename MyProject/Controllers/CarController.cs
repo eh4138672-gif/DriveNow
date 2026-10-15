@@ -5,7 +5,7 @@ using MyProject.Core.Interfaces;
 
 namespace MyProject.Controllers
 {
-    // צפייה ברכבים פתוחה לכולם. הוספה, עדכון ומחיקה - למנהל בלבד
+    // צפייה ברכבים פתוחה לכולם. הוספה, עדכון, הוצאה מהשכרה ומחיקה - למנהל בלבד
     [Route("api/cars")]
     [Authorize(Roles = "Admin")]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
@@ -59,6 +59,19 @@ namespace MyProject.Controllers
         public async Task<ActionResult> Update([FromRoute] int id, [FromBody] CarUpdateDto dto, CancellationToken ct)
         {
             var result = await _carService.UpdateAsync(id, dto, ct);
+            return result.IsSuccess ? NoContent() : Failure(result);
+        }
+
+        // הוצאת רכב מההשכרה (IsActive = false) או החזרתו. רכב עם היסטוריית השכרות אי אפשר למחוק,
+        // אבל אפשר להוציא אותו מההשכרה כך שלא יוצג ללקוחות ולא יהיה ניתן להזמנה
+        [HttpPatch("{id:int}/availability")]
+        [ProducesResponseType(StatusCodes.Status204NoContent)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        [ProducesResponseType(StatusCodes.Status409Conflict)]
+        public async Task<ActionResult> SetAvailability([FromRoute] int id, [FromBody] CarAvailabilityDto dto, CancellationToken ct)
+        {
+            var result = await _carService.SetAvailabilityAsync(id, dto.IsActive!.Value, ct);
             return result.IsSuccess ? NoContent() : Failure(result);
         }
 

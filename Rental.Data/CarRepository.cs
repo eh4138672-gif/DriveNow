@@ -18,6 +18,10 @@ namespace MyProject.Data
         {
             var cars = ReadQuery;
 
+            if (!query.IncludeInactive)
+            {
+                cars = cars.Where(c => c.IsActive);
+            }
             if (query.FeatureId.HasValue)
             {
                 cars = cars.Where(c => c.Features.Any(f => f.Id == query.FeatureId.Value));
@@ -29,16 +33,16 @@ namespace MyProject.Data
             }
             if (query.MinPrice.HasValue)
             {
-                cars = cars.Where(c => c.Price >= query.MinPrice.Value);
+                cars = cars.Where(c => c.PricePerHour >= query.MinPrice.Value);
             }
             if (query.MaxPrice.HasValue)
             {
-                cars = cars.Where(c => c.Price <= query.MaxPrice.Value);
+                cars = cars.Where(c => c.PricePerHour <= query.MaxPrice.Value);
             }
 
             var ordered = query.SortBy?.ToLowerInvariant() switch
             {
-                "price" => query.Descending ? cars.OrderByDescending(c => c.Price) : cars.OrderBy(c => c.Price),
+                "price" => query.Descending ? cars.OrderByDescending(c => c.PricePerHour) : cars.OrderBy(c => c.PricePerHour),
                 "licensenumber" => query.Descending ? cars.OrderByDescending(c => c.LicenseNumber) : cars.OrderBy(c => c.LicenseNumber),
                 _ => query.Descending ? cars.OrderByDescending(c => c.Model) : cars.OrderBy(c => c.Model)
             };

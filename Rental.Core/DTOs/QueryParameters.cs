@@ -29,6 +29,9 @@ namespace MyProject.Core.DTOs
         public string? SortBy { get; set; }
 
         public bool Descending { get; set; }
+
+        // גם רכבים שהוצאו מההשכרה. נלקח בחשבון רק למנהל - לאחרים ה-Service מאפס אותו
+        public bool IncludeInactive { get; set; }
     }
 
     public class CustomerQueryParameters : PagingParameters

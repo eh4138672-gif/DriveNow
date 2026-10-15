@@ -19,7 +19,7 @@ namespace Rental.Tests
         private readonly Mock<ICurrentUser> _currentUser = new();
         private readonly Mock<ITransaction> _transaction = new();
         private readonly IMapper _mapper = new MapperConfiguration(c => c.AddProfile<MappingProfile>()).CreateMapper();
-        private readonly Car _car = new() { Id = 1, Model = "Mazda 3", LicenseNumber = "123-45-678", Price = 100 };
+        private readonly Car _car = new() { Id = 1, Model = "Mazda 3", LicenseNumber = "123-45-678", PricePerHour = 50 };
 
         public RentalServiceTests()
         {
@@ -65,13 +65,40 @@ namespace Rental.Tests
             var result = await CreateService().CreateAsync(Request(), default);
 
             Assert.True(result.IsSuccess);
-            Assert.Equal(300, result.Value!.TotalPrice);
+            // 72 שעות × 45 (50 לשעה פחות 10% הנחה, כי ההשכרה ארוכה מיומיים)
+            Assert.Equal(3240, result.Value!.TotalPrice);
             Assert.Equal("Mazda 3", result.Value.CarModel);
             // הרכב חייב להשתנות, אחרת ה-RowVersion שלו לא נבדק בשמירה
             Assert.NotNull(_car.LastBookedAt);
             _rentals.Verify(r => r.Add(It.Is<MyProject.Core.Entities.Rental>(x => x.CarId == _car.Id)), Times.Once);
             _rentals.Verify(r => r.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
             _transaction.Verify(t => t.CommitAsync(It.IsAny<CancellationToken>()), Times.Once);
+        }
+
+        [Fact]
+        public async Task Create_CarOutOfRental_ReturnsConflictWithoutSaving()
+        {
+            SetupOverlap(false);
+            _car.IsActive = false;
+
+            var result = await CreateService().CreateAsync(Request(), default);
+
+            Assert.Equal(ResultStatus.Conflict, result.Status);
+            _rentals.Verify(r => r.Add(It.IsAny<MyProject.Core.Entities.Rental>()), Times.Never);
+        }
+
+        [Theory]
+        [InlineData(50, 5.0, 250)]    // 5 שעות × 50
+        [InlineData(50, 2.5, 150)]    // שעה שהתחילה מחויבת כשעה מלאה: 3 × 50
+        [InlineData(50, 48.0, 2400)]  // בדיוק יומיים - בלי הנחה
+        [InlineData(50, 49.0, 2205)]  // יותר מיומיים - 10% הנחה: 49 × 45
+        [InlineData(50, 72.0, 3240)]  // 3 ימים בהנחה: 72 × 45
+        [InlineData(35, 49.0, 1568)]  // 35 פחות 10% = 31.5, מעוגל ל-32 שלם: 49 × 32
+        public void Pricing_ChargesWholeShekelsPerHourWithDiscountAfterTwoDays(int pricePerHour, double hours, int expectedPrice)
+        {
+            var start = new DateTime(2026, 11, 1, 9, 0, 0);
+
+            Assert.Equal(expectedPrice, RentalPricing.TotalPrice(pricePerHour, start, start.AddHours(hours)));
         }
 
         [Fact]
@@ -146,6 +173,34 @@ namespace Rental.Tests
 
             Assert.True(result.IsSuccess);
             _rentals.Verify(r => r.Add(It.Is<MyProject.Core.Entities.Rental>(x => x.CustomerId == 1)), Times.Once);
+        }
+
+        [Fact]
+        public async Task Create_WithDriverLicense_BooksForThatCustomer()
+        {
+            SetupOverlap(false);
+            _customers.Setup(r => r.GetByDriverLicenseAsync("11223344", It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new Customer { Id = 2, Name = "דנה כהן", DriverLicenseId = "11223344" });
+            _customers.Setup(r => r.ExistsAsync(2, It.IsAny<CancellationToken>())).ReturnsAsync(true);
+            var request = Request();
+            request.DriverLicenseId = "11223344";
+
+            var result = await CreateService().CreateAsync(request, default);
+
+            Assert.True(result.IsSuccess);
+            _rentals.Verify(r => r.Add(It.Is<MyProject.Core.Entities.Rental>(x => x.CustomerId == 2)), Times.Once);
+        }
+
+        [Fact]
+        public async Task Create_UnknownDriverLicense_ReturnsNotFoundWithoutSaving()
+        {
+            var request = Request();
+            request.DriverLicenseId = "99999999";
+
+            var result = await CreateService().CreateAsync(request, default);
+
+            Assert.Equal(ResultStatus.NotFound, result.Status);
+            _rentals.Verify(r => r.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Never);
         }
 
         [Fact]

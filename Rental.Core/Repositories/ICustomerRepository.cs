@@ -7,5 +7,8 @@ namespace MyProject.Core.Interfaces
     {
         Task<PagedResult<Customer>> GetPagedAsync(CustomerQueryParameters query, CancellationToken ct);
         Task<bool> DriverLicenseExistsAsync(string driverLicenseId, int? excludeCustomerId, CancellationToken ct);
+
+        // חיפוש לקוח אחד לפי התאמה מדויקת של רישיון הנהיגה (קריאה בלבד)
+        Task<Customer?> GetByDriverLicenseAsync(string driverLicenseId, CancellationToken ct);
     }
 }

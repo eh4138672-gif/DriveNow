@@ -5,7 +5,11 @@ namespace MyProject.Core.Entities
         public int Id { get; set; }
         public string LicenseNumber { get; set; } = string.Empty;
         public string Model { get; set; } = string.Empty;
-        public int Price { get; set; }
+        // מחיר לשעה בשקלים שלמים (מינימום 30). המחיר הכולל מחושב ב-RentalPricing
+        public int PricePerHour { get; set; }
+
+        // רכב שהוצא מההשכרה לא מוצג ללקוחות ולא ניתן להזמנה, אבל ההיסטוריה שלו נשמרת
+        public bool IsActive { get; set; } = true;
 
         // מתעדכן בכל הזמנה של הרכב, כדי ששתי הזמנות מקבילות ישנו את אותה שורה
         // ויתנגשו על ה-RowVersion

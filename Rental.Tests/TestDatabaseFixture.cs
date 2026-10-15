@@ -29,7 +29,7 @@ namespace Rental.Tests
             {
                 LicenseNumber = Guid.NewGuid().ToString("N")[..20],
                 Model = "Test Car",
-                Price = 100
+                PricePerHour = 50
             };
             context.Cars.Add(car);
             await context.SaveChangesAsync();

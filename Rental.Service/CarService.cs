@@ -13,6 +13,7 @@ namespace MyProject.Services
         private readonly ICarRepository _cars;
         private readonly IRentalRepository _rentals;
         private readonly IFeatureRepository _features;
+        private readonly ICurrentUser _currentUser;
         private readonly IMapper _mapper;
         private readonly ILogger<CarService> _logger;
 
@@ -20,18 +21,23 @@ namespace MyProject.Services
             ICarRepository cars,
             IRentalRepository rentals,
             IFeatureRepository features,
+            ICurrentUser currentUser,
             IMapper mapper,
             ILogger<CarService> logger)
         {
             _cars = cars;
             _rentals = rentals;
             _features = features;
+            _currentUser = currentUser;
             _mapper = mapper;
             _logger = logger;
         }
 
         public async Task<PagedResult<CarDto>> GetAllAsync(CarQueryParameters query, CancellationToken ct)
         {
+            // רק מנהל רואה רכבים שהוצאו מההשכרה
+            query.IncludeInactive = query.IncludeInactive && _currentUser.IsAdmin;
+
             var page = await _cars.GetPagedAsync(query, ct);
             return new PagedResult<CarDto>(_mapper.Map<List<CarDto>>(page.Items), page.Page, page.PageSize, page.TotalCount);
         }
@@ -39,9 +45,37 @@ namespace MyProject.Services
         public async Task<Result<CarDto>> GetByIdAsync(int id, CancellationToken ct)
         {
             var car = await _cars.GetByIdAsync(id, ct);
-            return car == null
+            return car == null || (!car.IsActive && !_currentUser.IsAdmin)
                 ? Result<CarDto>.NotFound($"רכב {id} לא נמצא")
                 : Result<CarDto>.Success(_mapper.Map<CarDto>(car));
+        }
+
+        public async Task<Result> SetAvailabilityAsync(int id, bool isActive, CancellationToken ct)
+        {
+            var car = await _cars.GetForUpdateAsync(id, ct);
+            if (car == null)
+            {
+                return Result.NotFound($"רכב {id} לא נמצא");
+            }
+            if (car.IsActive == isActive)
+            {
+                return Result.Success();
+            }
+
+            // השינוי מעדכן את ה-RowVersion, ולכן הזמנה שרצה במקביל ייכשל עם 409 במקום להיכנס לרכב שהוצא
+            car.IsActive = isActive;
+            try
+            {
+                await _cars.SaveChangesAsync(ct);
+            }
+            catch (ConcurrencyConflictException)
+            {
+                _logger.LogWarning("Concurrency conflict changing availability of car {CarId}", id);
+                return Result.Conflict("הרכב השתנה בזמן העדכון. נסה שוב.");
+            }
+
+            _logger.LogInformation("Car {CarId} is now {State}", id, isActive ? "available for rent" : "out of rental");
+            return Result.Success();
         }
 
         public async Task<List<FeatureDto>> GetFeaturesAsync(CancellationToken ct) =>
@@ -130,7 +164,7 @@ namespace MyProject.Services
             }
             if (await _rentals.AnyForCarAsync(id, ct))
             {
-                return Result.Conflict("לא ניתן למחוק רכב שיש לו השכרות");
+                return Result.Conflict("לא ניתן למחוק רכב שיש לו השכרות. אפשר להוציא אותו מההשכרה במקום.");
             }
 
             _cars.Remove(car);

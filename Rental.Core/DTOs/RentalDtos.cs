@@ -21,7 +21,12 @@ namespace MyProject.Core.DTOs
         [Range(1, int.MaxValue)]
         public int CarId { get; set; }
 
-        // נדרש רק כשמנהל מזמין עבור לקוח. לקוח מחובר תמיד מזמין לעצמו
+        // ההזמנה נרשמת על שם המשתמש המחובר. כדי להזמין על שם לקוח אחר, שולחים את מספר
+        // רישיון הנהיגה שלו (התאמה מדויקת) - כך אפשר להזמין עבור מישהו בלי לראות רשימת לקוחות
+        [RegularExpression(@"^\d{7,9}$", ErrorMessage = "DriverLicenseId must be 7-9 digits")]
+        public string? DriverLicenseId { get; set; }
+
+        // לשימוש מנהל דרך ה-API בלבד. לקוח שישלח מזהה אחר - המזהה יתעלם
         [Range(1, int.MaxValue)]
         public int? CustomerId { get; set; }
 
@@ -31,10 +36,11 @@ namespace MyProject.Core.DTOs
         // ולידציה שלא תלויה במצב הנתונים. בדיקות זמינות וקיום יושבות ב-Service
         public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
         {
-            if (DateEnd.Date <= DateStart.Date)
+            // ההשכרה כוללת תאריך ושעה. מינימום שעה אחת
+            if (DateEnd < DateStart.AddHours(1))
             {
                 yield return new ValidationResult(
-                    "DateEnd must be at least one day after DateStart",
+                    "DateEnd must be at least one hour after DateStart",
                     new[] { nameof(DateEnd) });
             }
         }

@@ -101,21 +101,22 @@ namespace MyProject.Data
                 new Feature { Id = 8, Name = "מצלמה אחורית" });
 
             modelBuilder.Entity<Car>().HasData(
-                new Car { Id = 1, LicenseNumber = "123-45-678", Model = "Mazda 3", Price = 200 },
-                new Car { Id = 2, LicenseNumber = "987-65-432", Model = "Toyota Corolla", Price = 220 },
+                // מחירים לשעה. כפולות של 10, כדי שגם המחיר אחרי 10% הנחה יהיה שקל שלם
+                new Car { Id = 1, LicenseNumber = "123-45-678", Model = "Mazda 3", PricePerHour = 50 },
+                new Car { Id = 2, LicenseNumber = "987-65-432", Model = "Toyota Corolla", PricePerHour = 50 },
                 // נתוני ההדגמה הנוספים מתחילים ב-Id 101, כדי לא להתנגש ברשומות שנוצרו דרך האפליקציה
-                new Car { Id = 101, LicenseNumber = "234-56-781", Model = "Hyundai i20", Price = 150 },
-                new Car { Id = 102, LicenseNumber = "345-67-812", Model = "Kia Picanto", Price = 130 },
-                new Car { Id = 103, LicenseNumber = "456-78-123", Model = "Skoda Octavia", Price = 240 },
-                new Car { Id = 104, LicenseNumber = "567-81-234", Model = "Tesla Model 3", Price = 420 },
-                new Car { Id = 105, LicenseNumber = "678-12-345", Model = "Toyota RAV4 Hybrid", Price = 350 },
-                new Car { Id = 106, LicenseNumber = "789-23-456", Model = "Kia Sorento", Price = 380 },
-                new Car { Id = 107, LicenseNumber = "891-34-567", Model = "Mitsubishi Outlander", Price = 330 },
-                new Car { Id = 108, LicenseNumber = "12-345-67", Model = "Suzuki Swift", Price = 140 },
-                new Car { Id = 109, LicenseNumber = "23-456-78", Model = "Hyundai Ioniq 5", Price = 400 },
-                new Car { Id = 110, LicenseNumber = "34-567-89", Model = "Volkswagen Golf", Price = 260 },
-                new Car { Id = 111, LicenseNumber = "45-678-91", Model = "Chevrolet Spark", Price = 120 },
-                new Car { Id = 112, LicenseNumber = "56-789-12", Model = "Seat Ibiza", Price = 170 });
+                new Car { Id = 101, LicenseNumber = "234-56-781", Model = "Hyundai i20", PricePerHour = 40 },
+                new Car { Id = 102, LicenseNumber = "345-67-812", Model = "Kia Picanto", PricePerHour = 30 },
+                new Car { Id = 103, LicenseNumber = "456-78-123", Model = "Skoda Octavia", PricePerHour = 60 },
+                new Car { Id = 104, LicenseNumber = "567-81-234", Model = "Tesla Model 3", PricePerHour = 100 },
+                new Car { Id = 105, LicenseNumber = "678-12-345", Model = "Toyota RAV4 Hybrid", PricePerHour = 80 },
+                new Car { Id = 106, LicenseNumber = "789-23-456", Model = "Kia Sorento", PricePerHour = 80 },
+                new Car { Id = 107, LicenseNumber = "891-34-567", Model = "Mitsubishi Outlander", PricePerHour = 70 },
+                new Car { Id = 108, LicenseNumber = "12-345-67", Model = "Suzuki Swift", PricePerHour = 30 },
+                new Car { Id = 109, LicenseNumber = "23-456-78", Model = "Hyundai Ioniq 5", PricePerHour = 90 },
+                new Car { Id = 110, LicenseNumber = "34-567-89", Model = "Volkswagen Golf", PricePerHour = 60 },
+                new Car { Id = 111, LicenseNumber = "45-678-91", Model = "Chevrolet Spark", PricePerHour = 30 },
+                new Car { Id = 112, LicenseNumber = "56-789-12", Model = "Seat Ibiza", PricePerHour = 40 });
 
             modelBuilder.Entity<Customer>().HasData(
                 new Customer { Id = 1, Name = "ישראל ישראלי", PhoneNumber = "050-1234567", DriverLicenseId = "99887766" },

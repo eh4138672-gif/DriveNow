@@ -25,7 +25,7 @@ namespace MyProject.Services
             // CarModel, CarLicenseNumber ו-CustomerName ממופים אוטומטית (flattening)
             CreateMap<Rental, RentalDto>()
                 .ForMember(d => d.CarFeatures, o => o.MapFrom(r => r.Car.Features.Select(f => f.Name)))
-                .ForMember(d => d.TotalPrice, o => o.MapFrom(r => (r.DateEnd.Date - r.DateStart.Date).Days * r.Car.Price));
+                .ForMember(d => d.TotalPrice, o => o.MapFrom(r => RentalPricing.TotalPrice(r.Car.PricePerHour, r.DateStart, r.DateEnd)));
             CreateMap<RentalRequestDto, Rental>();
         }
     }

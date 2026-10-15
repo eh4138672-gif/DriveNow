@@ -7,7 +7,8 @@ namespace MyProject.Core.DTOs
         public int Id { get; set; }
         public string LicenseNumber { get; set; } = string.Empty;
         public string Model { get; set; } = string.Empty;
-        public int Price { get; set; }
+        public int PricePerHour { get; set; }
+        public bool IsActive { get; set; }
         public List<FeatureDto> Features { get; set; } = new();
 
         // נשלח בחזרה בעדכון, כדי לזהות שינוי שקרה מאז שהלקוח קרא את הרכב
@@ -24,9 +25,9 @@ namespace MyProject.Core.DTOs
         [StringLength(50, MinimumLength = 2)]
         public string Model { get; set; } = string.Empty;
 
-        // מחיר ליום
-        [Range(1, 10000)]
-        public int Price { get; set; }
+        // מחיר לשעה, בשקלים שלמים
+        [Range(30, 1000, ErrorMessage = "PricePerHour must be between 30 and 1000")]
+        public int PricePerHour { get; set; }
 
         public List<int> FeatureIds { get; set; } = new();
     }
@@ -35,5 +36,12 @@ namespace MyProject.Core.DTOs
     {
         [Required]
         public byte[] RowVersion { get; set; } = default!;
+    }
+
+    // הוצאת רכב מההשכרה או החזרתו
+    public class CarAvailabilityDto
+    {
+        [Required]
+        public bool? IsActive { get; set; }
     }
 }

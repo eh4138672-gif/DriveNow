@@ -25,5 +25,8 @@ namespace MyProject.Data
 
         public Task<bool> DriverLicenseExistsAsync(string driverLicenseId, int? excludeCustomerId, CancellationToken ct) =>
             Set.AnyAsync(c => c.DriverLicenseId == driverLicenseId && c.Id != excludeCustomerId, ct);
+
+        public Task<Customer?> GetByDriverLicenseAsync(string driverLicenseId, CancellationToken ct) =>
+            ReadQuery.FirstOrDefaultAsync(c => c.DriverLicenseId == driverLicenseId, ct);
     }
 }

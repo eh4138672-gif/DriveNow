@@ -212,6 +212,9 @@ namespace MyProject.Data.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"), 1L, 1);
 
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
                     b.Property<DateTime?>("LastBookedAt")
                         .HasColumnType("datetime2");
 
@@ -225,7 +228,7 @@ namespace MyProject.Data.Migrations
                         .HasMaxLength(50)
                         .HasColumnType("nvarchar(50)");
 
-                    b.Property<int>("Price")
+                    b.Property<int>("PricePerHour")
                         .HasColumnType("int");
 
                     b.Property<byte[]>("RowVersion")
@@ -245,100 +248,114 @@ namespace MyProject.Data.Migrations
                         new
                         {
                             Id = 1,
+                            IsActive = true,
                             LicenseNumber = "123-45-678",
                             Model = "Mazda 3",
-                            Price = 200
+                            PricePerHour = 50
                         },
                         new
                         {
                             Id = 2,
+                            IsActive = true,
                             LicenseNumber = "987-65-432",
                             Model = "Toyota Corolla",
-                            Price = 220
+                            PricePerHour = 50
                         },
                         new
                         {
                             Id = 101,
+                            IsActive = true,
                             LicenseNumber = "234-56-781",
                             Model = "Hyundai i20",
-                            Price = 150
+                            PricePerHour = 40
                         },
                         new
                         {
                             Id = 102,
+                            IsActive = true,
                             LicenseNumber = "345-67-812",
                             Model = "Kia Picanto",
-                            Price = 130
+                            PricePerHour = 30
                         },
                         new
                         {
                             Id = 103,
+                            IsActive = true,
                             LicenseNumber = "456-78-123",
                             Model = "Skoda Octavia",
-                            Price = 240
+                            PricePerHour = 60
                         },
                         new
                         {
                             Id = 104,
+                            IsActive = true,
                             LicenseNumber = "567-81-234",
                             Model = "Tesla Model 3",
-                            Price = 420
+                            PricePerHour = 100
                         },
                         new
                         {
                             Id = 105,
+                            IsActive = true,
                             LicenseNumber = "678-12-345",
                             Model = "Toyota RAV4 Hybrid",
-                            Price = 350
+                            PricePerHour = 80
                         },
                         new
                         {
                             Id = 106,
+                            IsActive = true,
                             LicenseNumber = "789-23-456",
                             Model = "Kia Sorento",
-                            Price = 380
+                            PricePerHour = 80
                         },
                         new
                         {
                             Id = 107,
+                            IsActive = true,
                             LicenseNumber = "891-34-567",
                             Model = "Mitsubishi Outlander",
-                            Price = 330
+                            PricePerHour = 70
                         },
                         new
                         {
                             Id = 108,
+                            IsActive = true,
                             LicenseNumber = "12-345-67",
                             Model = "Suzuki Swift",
-                            Price = 140
+                            PricePerHour = 30
                         },
                         new
                         {
                             Id = 109,
+                            IsActive = true,
                             LicenseNumber = "23-456-78",
                             Model = "Hyundai Ioniq 5",
-                            Price = 400
+                            PricePerHour = 90
                         },
                         new
                         {
                             Id = 110,
+                            IsActive = true,
                             LicenseNumber = "34-567-89",
                             Model = "Volkswagen Golf",
-                            Price = 260
+                            PricePerHour = 60
                         },
                         new
                         {
                             Id = 111,
+                            IsActive = true,
                             LicenseNumber = "45-678-91",
                             Model = "Chevrolet Spark",
-                            Price = 120
+                            PricePerHour = 30
                         },
                         new
                         {
                             Id = 112,
+                            IsActive = true,
                             LicenseNumber = "56-789-12",
                             Model = "Seat Ibiza",
-                            Price = 170
+                            PricePerHour = 40
                         });
                 });
 
