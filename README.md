@@ -22,7 +22,7 @@
 - גם עדכון רכב מוגן: הלקוח שולח את ה-Version שקרא. אם הרכב השתנה מאז, מוחזר 409.
 - גם ביטול השכרה ועדכון או מחיקה של לקוח שמתנגשים עם משתמש אחר מחזירים 409. אותו דבר קורה בשתי הרשמות מקבילות עם אותו אימייל: האינדקס הייחודי דוחה את השנייה, וה-Repository עוטף את השגיאה ב-`DuplicateKeyException`.
 
-**ההוכחה:** ב-[MyProject.Tests/ConcurrencyTests.cs](MyProject.Tests/ConcurrencyTests.cs) יש שלוש בדיקות:
+**ההוכחה:** ב-[Rental.Tests/ConcurrencyTests.cs](Rental.Tests/ConcurrencyTests.cs) יש שלוש בדיקות:
 1. שני `DbContext` נפרדים קוראים את אותו רכב ומשנים אותו. הראשון שומר בהצלחה, והשני מקבל `DbUpdateConcurrencyException`.
 2. תרחיש ה-race צעד אחר צעד: שתי הזמנות רואות שהרכב פנוי, ורק הראשונה נשמרת.
 3. שתי הזמנות מקבילות אמיתיות דרך ה-Service, 5 פעמים. בכל פעם בדיוק אחת מצליחה, והשנייה מקבלת Conflict.
@@ -33,11 +33,11 @@
 
 | פרויקט | תוכן | תלוי ב |
 |---|---|---|
-| `MyProject.Core` | ישויות, DTOs, ממשקים, `Result` | - |
-| `MyProject.Data` | `DataContext`, Repositories, Migrations | Core |
-| `MyProject.Service` | לוגיקה עסקית, AutoMapper, hash לסיסמאות | Core |
-| `MyProject.API` | Controllers, Middleware, JWT, `Program.cs` | Core, Service, ו-Data לרישום בלבד |
-| `MyProject.Tests` | xUnit ו-Moq, ובדיקות concurrency על PostgreSQL אמיתי | כולם |
+| `Rental.Core` | ישויות, DTOs, ממשקים, `Result` | - |
+| `Rental.Data` | `DataContext`, Repositories, Migrations | Core |
+| `Rental.Service` | לוגיקה עסקית, AutoMapper, hash לסיסמאות | Core |
+| `Rental.API` | Controllers, Middleware, JWT, `Program.cs` | Core, Service, ו-Data לרישום בלבד |
+| `Rental.Tests` | xUnit ו-Moq, ובדיקות concurrency על PostgreSQL אמיתי | כולם |
 
 ## הרצה מקומית
 
@@ -48,16 +48,16 @@
 **1. סודות ב-User Secrets.** פעולה חד-פעמית, כי הם לא נמצאים ב-repo:
 
 ```bash
-dotnet user-secrets set "Jwt:Key" "<מחרוזת אקראית של 32 תווים לפחות>" --project MyProject.API
+dotnet user-secrets set "Jwt:Key" "<מחרוזת אקראית של 32 תווים לפחות>" --project Rental.API
 ```
 ```bash
-dotnet user-secrets set "ConnectionStrings:RentalDb" "Host=localhost;Port=5432;Database=rentaldb;Username=postgres;Password=<הסיסמה של postgres>" --project MyProject.API
+dotnet user-secrets set "ConnectionStrings:RentalDb" "Host=localhost;Port=5432;Database=rentaldb;Username=postgres;Password=<הסיסמה של postgres>" --project Rental.API
 ```
 
 **2. הרצת השרת:**
 
 ```bash
-dotnet run --project MyProject.API --launch-profile MyProject
+dotnet run --project Rental.API --launch-profile MyProject
 ```
 
 בהפעלה הראשונה השרת:
@@ -128,7 +128,7 @@ dotnet test
 
 ## לוגים
 
-- **הספרייה:** NLog (`NLog.Web.AspNetCore`). ההגדרות ב-[MyProject.API/nlog.config](MyProject.API/nlog.config).
+- **הספרייה:** NLog (`NLog.Web.AspNetCore`). ההגדרות ב-[Rental.API/nlog.config](Rental.API/nlog.config).
 - **היעדים:** הקונסול, וקובץ `logs/rental-<date>.log` בתיקיית הפלט.
 - **CorrelationId:** `CorrelationIdMiddleware` נותן מזהה לכל בקשה (או משתמש ב-header ‏`X-Correlation-ID` אם נשלח), ומחזיר אותו ב-header. המזהה מופיע בכל שורת לוג של הבקשה.
 - **רמות:**

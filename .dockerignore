@@ -5,4 +5,4 @@
 .claude/
 **/logs/
 rental-client/
-MyProject.Tests/
+Rental.Tests/

@@ -4,15 +4,16 @@
     <TargetFramework>net6.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
+    <RootNamespace>MyProject.Tests</RootNamespace>
     <IsPackable>false</IsPackable>
     <!-- אם .NET 6 לא מותקן, הבדיקות ירוצו על הגרסה הבאה שמותקנת -->
     <RollForward>Major</RollForward>
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\MyProject.Core\MyProject.Core.csproj" />
-    <ProjectReference Include="..\MyProject.Data\MyProject.Data.csproj" />
-    <ProjectReference Include="..\MyProject.Service\MyProject.Service.csproj" />
+    <ProjectReference Include="..\Rental.Core\Rental.Core.csproj" />
+    <ProjectReference Include="..\Rental.Data\Rental.Data.csproj" />
+    <ProjectReference Include="..\Rental.Service\Rental.Service.csproj" />
   </ItemGroup>
 
   <ItemGroup>

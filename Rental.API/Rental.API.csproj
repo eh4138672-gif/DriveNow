@@ -3,6 +3,7 @@
   <PropertyGroup>
     <TargetFramework>net6.0</TargetFramework>
     <Nullable>enable</Nullable>
+    <RootNamespace>MyProject</RootNamespace>
     <ImplicitUsings>enable</ImplicitUsings>
     <!-- אם .NET 6 לא מותקן, ירוץ על הגרסה הבאה שמותקנת -->
     <RollForward>Major</RollForward>
@@ -25,9 +26,9 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\MyProject.Core\MyProject.Core.csproj" />
-    <ProjectReference Include="..\MyProject.Data\MyProject.Data.csproj" />
-    <ProjectReference Include="..\MyProject.Service\MyProject.Service.csproj" />
+    <ProjectReference Include="..\Rental.Core\Rental.Core.csproj" />
+    <ProjectReference Include="..\Rental.Data\Rental.Data.csproj" />
+    <ProjectReference Include="..\Rental.Service\Rental.Service.csproj" />
   </ItemGroup>
 
 </Project>
