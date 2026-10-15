@@ -92,6 +92,16 @@ try
         });
     builder.Services.AddAuthorization();
 
+    // CORS: בפיתוח הלקוח עובר דרך ה-proxy של Vite ולא צריך את זה. בענן הלקוח יושב בכתובת אחרת,
+    // והכתובות המותרות נטענות מהקונפיגורציה (Cors:AllowedOrigins, למשל דרך משתני סביבה ב-Render)
+    var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>() ?? Array.Empty<string>();
+    builder.Services.AddCors(options =>
+        options.AddDefaultPolicy(policy => policy
+            .WithOrigins(allowedOrigins)
+            .AllowAnyHeader()
+            .AllowAnyMethod()
+            .WithExposedHeaders(CorrelationIdMiddleware.HeaderName)));
+
     builder.Services.AddControllers().ConfigureApiBehaviorOptions(options =>
     {
         // תשובת 400 האוטומטית של ModelState, עם traceId שתואם ל-CorrelationId
@@ -152,7 +162,8 @@ try
     app.UseMiddleware<ErrorHandlingMiddleware>();
     app.UseMiddleware<CorrelationIdMiddleware>();
 
-    if (app.Environment.IsDevelopment())
+    // Swagger תמיד בפיתוח, ובענן רק אם הופעל במפורש (Swagger:Enabled)
+    if (app.Environment.IsDevelopment() || app.Configuration.GetValue<bool>("Swagger:Enabled"))
     {
         app.UseSwagger();
         app.UseSwaggerUI();
@@ -160,6 +171,7 @@ try
 
     app.UseHttpsRedirection();
 
+    app.UseCors();
     app.UseAuthentication();
     app.UseAuthorization();
 
