@@ -7,6 +7,7 @@ using MyProject.Core.Interfaces;
 using MyProject.Core.Results;
 using MyProject.Data;
 using MyProject.Services;
+using Moq;
 using Xunit;
 
 namespace MyProject.Tests
@@ -86,13 +87,25 @@ namespace MyProject.Tests
                 // מנהל שמזמין עבור לקוח 1
                 var admin = new Moq.Mock<ICurrentUser>();
                 admin.Setup(u => u.IsAdmin).Returns(true);
+                // חברת אשראי שמאשרת כל חיוב. בודקים בסוף שהמפסיד במרוץ קיבל זיכוי
+                var payments = new Moq.Mock<IPaymentGateway>();
+                payments.Setup(p => p.ChargeAsync(It.IsAny<PaymentDto>(), It.IsAny<int>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+                    .ReturnsAsync(() => PaymentResult.Success(Guid.NewGuid().ToString("N")));
 
                 var request = new RentalRequestDto
                 {
                     CarId = carId,
                     CustomerId = 1,
                     DateStart = DateTime.Today.AddDays(5),
-                    DateEnd = DateTime.Today.AddDays(8)
+                    DateEnd = DateTime.Today.AddDays(8),
+                    Payment = new PaymentDto
+                    {
+                        CardHolder = "Test",
+                        CardNumber = "4242424242424242",
+                        ExpiryMonth = 12,
+                        ExpiryYear = DateTime.Today.Year + 2,
+                        Cvv = "123"
+                    }
                 };
 
                 async Task<Result<RentalDto>> BookAsync()
@@ -103,6 +116,7 @@ namespace MyProject.Tests
                         new CarRepository(context),
                         new CustomerRepository(context),
                         admin.Object,
+                        payments.Object,
                         mapper,
                         NullLogger<RentalService>.Instance);
                     return await service.CreateAsync(request, default);
@@ -115,6 +129,12 @@ namespace MyProject.Tests
 
                 await using var verify = _db.CreateContext();
                 Assert.Equal(1, await verify.Rentals.CountAsync(r => r.CarId == carId));
+
+                // המפסיד נדחה בבדיקת החפיפה (בלי חיוב) או בשמירה (חיוב וזיכוי).
+                // בשני המקרים נשאר בדיוק חיוב אחד בפועל - של ההזמנה שנשמרה
+                var charges = payments.Invocations.Count(i => i.Method.Name == nameof(IPaymentGateway.ChargeAsync));
+                var refunds = payments.Invocations.Count(i => i.Method.Name == nameof(IPaymentGateway.RefundAsync));
+                Assert.Equal(1, charges - refunds);
             }
         }
     }

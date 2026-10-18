@@ -51,6 +51,8 @@ try
     // ללא מצב פנימי, ולכן singleton
     builder.Services.AddSingleton<IPasswordHasher, PasswordHasher>();
     builder.Services.AddSingleton<ITokenService, JwtTokenService>();
+    // סליקה מדומה. כדי לעבור לספק אמיתי מחליפים רק את השורה הזאת
+    builder.Services.AddSingleton<IPaymentGateway, FakePaymentGateway>();
 
     builder.Services.AddHttpContextAccessor();
     builder.Services.AddScoped<ICurrentUser, CurrentUser>();

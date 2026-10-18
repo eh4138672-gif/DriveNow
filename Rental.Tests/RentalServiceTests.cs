@@ -18,6 +18,7 @@ namespace MyProject.Tests
         private readonly Mock<ICustomerRepository> _customers = new();
         private readonly Mock<ICurrentUser> _currentUser = new();
         private readonly Mock<ITransaction> _transaction = new();
+        private readonly Mock<IPaymentGateway> _payments = new();
         private readonly IMapper _mapper = new MapperConfiguration(c => c.AddProfile<MappingProfile>()).CreateMapper();
         private readonly Car _car = new() { Id = 1, Model = "Mazda 3", LicenseNumber = "123-45-678", PricePerHour = 50 };
 
@@ -30,6 +31,9 @@ namespace MyProject.Tests
             _cars.Setup(r => r.GetForUpdateAsync(_car.Id, It.IsAny<CancellationToken>())).ReturnsAsync(_car);
             _customers.Setup(r => r.ExistsAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(true);
             _rentals.Setup(r => r.BeginTransactionAsync(It.IsAny<CancellationToken>())).ReturnsAsync(_transaction.Object);
+            // ברירת המחדל: חברת האשראי מאשרת כל חיוב
+            _payments.Setup(p => p.ChargeAsync(It.IsAny<PaymentDto>(), It.IsAny<int>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(PaymentResult.Success("SIM-TEST"));
             _rentals.Setup(r => r.GetByIdAsync(It.IsAny<int>(), It.IsAny<CancellationToken>()))
                 .ReturnsAsync((int id, CancellationToken _) => new MyProject.Core.Entities.Rental
                 {
@@ -44,13 +48,23 @@ namespace MyProject.Tests
         }
 
         private RentalService CreateService() =>
-            new(_rentals.Object, _cars.Object, _customers.Object, _currentUser.Object, _mapper, NullLogger<RentalService>.Instance);
+            new(_rentals.Object, _cars.Object, _customers.Object, _currentUser.Object, _payments.Object, _mapper, NullLogger<RentalService>.Instance);
 
         private static RentalRequestDto Request(int carId = 1) => new()
         {
             CarId = carId,
             DateStart = DateTime.Today.AddDays(1),
-            DateEnd = DateTime.Today.AddDays(4)
+            DateEnd = DateTime.Today.AddDays(4),
+            Payment = TestCard()
+        };
+
+        private static PaymentDto TestCard(string number = "4242 4242 4242 4242") => new()
+        {
+            CardHolder = "ישראל ישראלי",
+            CardNumber = number,
+            ExpiryMonth = 12,
+            ExpiryYear = DateTime.Today.Year + 2,
+            Cvv = "123"
         };
 
         private void SetupOverlap(bool overlap) =>
@@ -127,6 +141,98 @@ namespace MyProject.Tests
             // הטרנזקציה לא נסגרת ב-Commit, ולכן היא מתבטלת
             _transaction.Verify(t => t.CommitAsync(It.IsAny<CancellationToken>()), Times.Never);
             _transaction.Verify(t => t.DisposeAsync(), Times.Once);
+            // מי שהפסיד במרוץ חויב לפני השמירה, ולכן מקבל את הכסף בחזרה
+            _payments.Verify(p => p.RefundAsync("SIM-TEST", 3240, It.IsAny<CancellationToken>()), Times.Once);
+        }
+
+        [Fact]
+        public async Task Create_Paid_StoresAmountAndOnlyLast4Digits()
+        {
+            SetupOverlap(false);
+
+            var result = await CreateService().CreateAsync(Request(), default);
+
+            Assert.True(result.IsSuccess);
+            // הסכום מחושב בשרת: 72 שעות × 45
+            _payments.Verify(p => p.ChargeAsync(It.IsAny<PaymentDto>(), 3240, It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Once);
+            _rentals.Verify(r => r.Add(It.Is<MyProject.Core.Entities.Rental>(x =>
+                x.AmountPaid == 3240 && x.CardLast4 == "4242" && x.PaymentReference == "SIM-TEST" && x.PaidAt != null)), Times.Once);
+        }
+
+        [Fact]
+        public async Task Create_CardDeclined_ReturnsPaymentDeclinedWithoutSaving()
+        {
+            SetupOverlap(false);
+            _payments.Setup(p => p.ChargeAsync(It.IsAny<PaymentDto>(), It.IsAny<int>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(PaymentResult.Declined("אין מספיק יתרה בכרטיס"));
+
+            var result = await CreateService().CreateAsync(Request(), default);
+
+            Assert.Equal(ResultStatus.PaymentDeclined, result.Status);
+            _rentals.Verify(r => r.Add(It.IsAny<MyProject.Core.Entities.Rental>()), Times.Never);
+            _rentals.Verify(r => r.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Never);
+        }
+
+        [Fact]
+        public async Task Create_CarAlreadyBooked_DoesNotCharge()
+        {
+            SetupOverlap(true);
+
+            await CreateService().CreateAsync(Request(), default);
+
+            _payments.Verify(p => p.ChargeAsync(It.IsAny<PaymentDto>(), It.IsAny<int>(), It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
+        }
+
+        [Fact]
+        public async Task Create_WithoutPayment_ReturnsInvalid()
+        {
+            var request = Request();
+            request.Payment = null;
+
+            var result = await CreateService().CreateAsync(request, default);
+
+            Assert.Equal(ResultStatus.Invalid, result.Status);
+            _rentals.Verify(r => r.Add(It.IsAny<MyProject.Core.Entities.Rental>()), Times.Never);
+        }
+
+        [Fact]
+        public async Task Delete_PaidRental_RefundsPayment()
+        {
+            var rental = new MyProject.Core.Entities.Rental
+            {
+                Id = 7, CarId = 1, CustomerId = 1, AmountPaid = 500, PaymentReference = "SIM-PAID"
+            };
+            _rentals.Setup(r => r.GetForUpdateAsync(7, It.IsAny<CancellationToken>())).ReturnsAsync(rental);
+
+            var result = await CreateService().DeleteAsync(7, default);
+
+            Assert.True(result.IsSuccess);
+            _payments.Verify(p => p.RefundAsync("SIM-PAID", 500, It.IsAny<CancellationToken>()), Times.Once);
+        }
+
+        [Theory]
+        [InlineData("4242 4242 4242 4242", true)]
+        [InlineData("4000-0000-0000-0002", true)]
+        [InlineData("4242 4242 4242 4241", false)] // ספרת ביקורת שגויה
+        [InlineData("1234", false)]                // קצר מדי
+        public void PaymentDto_ValidatesCardNumberWithLuhn(string number, bool valid)
+        {
+            var card = TestCard(number);
+
+            var errors = card.Validate(new System.ComponentModel.DataAnnotations.ValidationContext(card)).ToList();
+
+            Assert.Equal(valid, errors.Count == 0);
+        }
+
+        [Fact]
+        public void PaymentDto_ExpiredCard_IsInvalid()
+        {
+            var card = TestCard();
+            card.ExpiryYear = DateTime.Today.Year - 1;
+
+            var errors = card.Validate(new System.ComponentModel.DataAnnotations.ValidationContext(card)).ToList();
+
+            Assert.Single(errors);
         }
 
         [Fact]

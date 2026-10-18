@@ -113,6 +113,9 @@ namespace MyProject.Data
                 // תאריך ושעה מקומיים, בלי אזור זמן - כפי שהם נבחרים במסך ההזמנה
                 rental.Property(r => r.DateStart).HasColumnType("timestamp without time zone");
                 rental.Property(r => r.DateEnd).HasColumnType("timestamp without time zone");
+
+                rental.Property(r => r.CardLast4).HasMaxLength(4);
+                rental.Property(r => r.PaymentReference).HasMaxLength(40);
             });
 
             // ב-PostgreSQL הכנסה עם Id מפורש (נתוני ה-Seed) לא מקדמת את מונה ה-identity.

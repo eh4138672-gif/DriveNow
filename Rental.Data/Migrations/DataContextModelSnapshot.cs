@@ -535,8 +535,15 @@ namespace MyProject.Data.Migrations
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
                     NpgsqlPropertyBuilderExtensions.HasIdentityOptions(b.Property<int>("Id"), 1000L, null, null, null, null, null);
 
+                    b.Property<int?>("AmountPaid")
+                        .HasColumnType("integer");
+
                     b.Property<int>("CarId")
                         .HasColumnType("integer");
+
+                    b.Property<string>("CardLast4")
+                        .HasMaxLength(4)
+                        .HasColumnType("character varying(4)");
 
                     b.Property<int>("CustomerId")
                         .HasColumnType("integer");
@@ -546,6 +553,13 @@ namespace MyProject.Data.Migrations
 
                     b.Property<DateTime>("DateStart")
                         .HasColumnType("timestamp without time zone");
+
+                    b.Property<DateTime?>("PaidAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("PaymentReference")
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)");
 
                     b.HasKey("Id");
 

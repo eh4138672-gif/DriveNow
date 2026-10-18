@@ -39,6 +39,7 @@ namespace MyProject.Controllers
         [HttpPost]
         [ProducesResponseType(StatusCodes.Status201Created)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status402PaymentRequired)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
         [ProducesResponseType(StatusCodes.Status409Conflict)]
         public async Task<ActionResult<RentalDto>> Create([FromBody] RentalRequestDto dto, CancellationToken ct)

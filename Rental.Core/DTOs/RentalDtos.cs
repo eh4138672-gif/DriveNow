@@ -14,6 +14,10 @@ namespace MyProject.Core.DTOs
         public DateTime DateStart { get; set; }
         public DateTime DateEnd { get; set; }
         public int TotalPrice { get; set; }
+        public int? AmountPaid { get; set; }
+        public string? CardLast4 { get; set; }
+        public string? PaymentReference { get; set; }
+        public DateTime? PaidAt { get; set; }
     }
 
     public class RentalRequestDto : IValidatableObject
@@ -32,6 +36,9 @@ namespace MyProject.Core.DTOs
 
         public DateTime DateStart { get; set; }
         public DateTime DateEnd { get; set; }
+
+        // חובה ביצירת הזמנה: מי שסוגר הזמנה משלם עליה. הסכום מחושב בשרת, לא נשלח מהלקוח
+        public PaymentDto? Payment { get; set; }
 
         // ולידציה שלא תלויה במצב הנתונים. בדיקות זמינות וקיום יושבות ב-Service
         public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)

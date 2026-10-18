@@ -16,6 +16,7 @@ namespace MyProject.Controllers
                 ResultStatus.Conflict => StatusCodes.Status409Conflict,
                 ResultStatus.Unauthorized => StatusCodes.Status401Unauthorized,
                 ResultStatus.Forbidden => StatusCodes.Status403Forbidden,
+                ResultStatus.PaymentDeclined => StatusCodes.Status402PaymentRequired,
                 _ => StatusCodes.Status400BadRequest
             };
 

@@ -29,6 +29,7 @@ namespace MyProject.Services
         private readonly ICarRepository _cars;
         private readonly ICustomerRepository _customers;
         private readonly ICurrentUser _currentUser;
+        private readonly IPaymentGateway _payments;
         private readonly IMapper _mapper;
         private readonly ILogger<RentalService> _logger;
 
@@ -37,6 +38,7 @@ namespace MyProject.Services
             ICarRepository cars,
             ICustomerRepository customers,
             ICurrentUser currentUser,
+            IPaymentGateway payments,
             IMapper mapper,
             ILogger<RentalService> logger)
         {
@@ -44,6 +46,7 @@ namespace MyProject.Services
             _cars = cars;
             _customers = customers;
             _currentUser = currentUser;
+            _payments = payments;
             _mapper = mapper;
             _logger = logger;
         }
@@ -91,8 +94,12 @@ namespace MyProject.Services
             {
                 return Result<RentalDto>.Invalid("לא ניתן להזמין רכב למועד שכבר עבר");
             }
+            if (dto.Payment == null)
+            {
+                return Result<RentalDto>.Invalid("יש להזין פרטי כרטיס אשראי לתשלום על ההזמנה");
+            }
 
-            var booking = await TryBookAsync(dto, null, ct);
+            var booking = await TryBookAsync(dto, null, dto.Payment, ct);
             if (!booking.IsSuccess)
             {
                 return Result<RentalDto>.FromFailure(booking);
@@ -125,7 +132,8 @@ namespace MyProject.Services
                 return Result.Invalid("לא ניתן להזיז השכרה למועד שכבר עבר");
             }
 
-            var booking = await TryBookAsync(dto, id, ct);
+            // עדכון לא מחייב שוב: התשלום המקורי נשאר כפי שהוא
+            var booking = await TryBookAsync(dto, id, null, ct);
             return booking.IsSuccess ? Result.Success() : booking;
         }
 
@@ -152,6 +160,12 @@ namespace MyProject.Services
                 return Result.Conflict("ההשכרה שונתה או בוטלה על ידי משתמש אחר. רענן ונסה שוב.");
             }
             _logger.LogInformation("Rental {RentalId} cancelled", id);
+
+            // ביטול הזמנה מחזיר את הכסף. הזיכוי רק אחרי שהמחיקה נשמרה, כדי לא לזכות על הזמנה שנשארה
+            if (rental.PaymentReference != null && rental.AmountPaid != null)
+            {
+                await _payments.RefundAsync(rental.PaymentReference, rental.AmountPaid.Value, ct);
+            }
             return Result.Success();
         }
 
@@ -181,8 +195,10 @@ namespace MyProject.Services
                 : Result<int>.Success(customerId.Value);
         }
 
-        // יוצר השכרה חדשה (rentalId == null) או מעדכן קיימת, תוך שמירה על הרכב כמשאב מוגבל
-        private async Task<Result<Rental>> TryBookAsync(RentalRequestDto dto, int? rentalId, CancellationToken ct)
+        // יוצר השכרה חדשה (rentalId == null) או מעדכן קיימת, תוך שמירה על הרכב כמשאב מוגבל.
+        // כשיש payment, החיוב מתבצע אחרי בדיקת הזמינות ולפני השמירה. אם השמירה נכשלת
+        // (למשל מישהו אחר תפס את הרכב באותו רגע) - החיוב מבוטל, כך שאף אחד לא משלם על הזמנה שלא נשמרה
+        private async Task<Result<Rental>> TryBookAsync(RentalRequestDto dto, int? rentalId, PaymentDto? payment, CancellationToken ct)
         {
             // שלב 1: הרכב נטען עם מעקב, וה-Version שלו נשמר כערך המקורי
             var car = await _cars.GetForUpdateAsync(dto.CarId, ct);
@@ -214,6 +230,18 @@ namespace MyProject.Services
                 return Result<Rental>.Conflict("הרכב כבר מוזמן בחלק מהתאריכים האלה");
             }
 
+            // תשלום. הסכום מחושב כאן בשרת לפי מחיר הרכב, ולא נלקח מהדפדפן
+            PaymentResult? charge = null;
+            var amount = RentalPricing.TotalPrice(car.PricePerHour, start, end);
+            if (payment != null)
+            {
+                charge = await _payments.ChargeAsync(payment, amount, $"Car {car.LicenseNumber}", ct);
+                if (!charge.Approved)
+                {
+                    return Result<Rental>.PaymentDeclined($"התשלום נדחה: {charge.DeclineReason}");
+                }
+            }
+
             // שלב 3
             Rental rental;
             if (rentalId == null)
@@ -229,6 +257,13 @@ namespace MyProject.Services
             rental.CustomerId = customerId;
             rental.DateStart = start;
             rental.DateEnd = end;
+            if (charge != null)
+            {
+                rental.AmountPaid = amount;
+                rental.CardLast4 = payment!.Last4;
+                rental.PaymentReference = charge.Reference;
+                rental.PaidAt = DateTime.UtcNow;
+            }
 
             // נוגעים ברכב כדי שה-UPDATE שלו (עם בדיקת ה-Version) ייכנס לאותה טרנזקציה
             car.LastBookedAt = DateTime.UtcNow;
@@ -237,17 +272,32 @@ namespace MyProject.Services
             try
             {
                 await _rentals.SaveChangesAsync(ct);
+                await transaction.CommitAsync(ct);
             }
             catch (ConcurrencyConflictException)
             {
                 _logger.LogWarning(
                     "Booking conflict on car {CarId} for {Start:yyyy-MM-dd} - {End:yyyy-MM-dd}: another booking was saved first",
                     car.Id, start, end);
-                return Result<Rental>.Conflict("הרכב נתפס על ידי משתמש אחר ממש עכשיו. בחר תאריכים אחרים או נסה שוב.");
+                await RefundAsync(charge, amount);
+                return Result<Rental>.Conflict("הרכב נתפס על ידי משתמש אחר ממש עכשיו. בחר תאריכים אחרים או נסה שוב. לא חויבת.");
             }
-            await transaction.CommitAsync(ct);
+            catch
+            {
+                await RefundAsync(charge, amount);
+                throw;
+            }
 
             return Result<Rental>.Success(rental);
+        }
+
+        // ביטול חיוב של הזמנה שלא נשמרה. CancellationToken.None: הזיכוי חייב לקרות גם אם הבקשה בוטלה
+        private async Task RefundAsync(PaymentResult? charge, int amount)
+        {
+            if (charge?.Reference != null)
+            {
+                await _payments.RefundAsync(charge.Reference, amount, CancellationToken.None);
+            }
         }
     }
 }
