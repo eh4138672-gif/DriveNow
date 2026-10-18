@@ -558,6 +558,7 @@ namespace MyProject.Data.Migrations
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("PaymentReference")
+                        .IsConcurrencyToken()
                         .HasMaxLength(40)
                         .HasColumnType("character varying(40)");
 

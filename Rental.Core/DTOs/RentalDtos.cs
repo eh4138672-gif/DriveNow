@@ -37,9 +37,6 @@ namespace MyProject.Core.DTOs
         public DateTime DateStart { get; set; }
         public DateTime DateEnd { get; set; }
 
-        // חובה ביצירת הזמנה: מי שסוגר הזמנה משלם עליה. הסכום מחושב בשרת, לא נשלח מהלקוח
-        public PaymentDto? Payment { get; set; }
-
         // ולידציה שלא תלויה במצב הנתונים. בדיקות זמינות וקיום יושבות ב-Service
         public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
         {

@@ -39,7 +39,6 @@ namespace MyProject.Controllers
         [HttpPost]
         [ProducesResponseType(StatusCodes.Status201Created)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
-        [ProducesResponseType(StatusCodes.Status402PaymentRequired)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
         [ProducesResponseType(StatusCodes.Status409Conflict)]
         public async Task<ActionResult<RentalDto>> Create([FromBody] RentalRequestDto dto, CancellationToken ct)
@@ -50,6 +49,20 @@ namespace MyProject.Controllers
                 return Failure(result);
             }
             return CreatedAtAction(nameof(GetById), new { id = result.Value!.Id }, result.Value);
+        }
+
+        // תשלום על השכרה קיימת (סימולציה). 402 אם הכרטיס נדחה, 409 אם כבר שולמה
+        [HttpPost("{id:int}/pay")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status402PaymentRequired)]
+        [ProducesResponseType(StatusCodes.Status403Forbidden)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        [ProducesResponseType(StatusCodes.Status409Conflict)]
+        public async Task<ActionResult<RentalDto>> Pay([FromRoute] int id, [FromBody] PaymentDto payment, CancellationToken ct)
+        {
+            var result = await _rentalService.PayAsync(id, payment, ct);
+            return result.IsSuccess ? Ok(result.Value) : Failure(result);
         }
 
         [HttpPut("{id:int}")]

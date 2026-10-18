@@ -10,5 +10,6 @@ namespace MyProject.Core.Interfaces
         Task<Result<RentalDto>> CreateAsync(RentalRequestDto dto, CancellationToken ct);
         Task<Result> UpdateAsync(int id, RentalRequestDto dto, CancellationToken ct);
         Task<Result> DeleteAsync(int id, CancellationToken ct);
+        Task<Result<RentalDto>> PayAsync(int id, PaymentDto payment, CancellationToken ct);
     }
 }

@@ -54,8 +54,7 @@ namespace MyProject.Tests
         {
             CarId = carId,
             DateStart = DateTime.Today.AddDays(1),
-            DateEnd = DateTime.Today.AddDays(4),
-            Payment = TestCard()
+            DateEnd = DateTime.Today.AddDays(4)
         };
 
         private static PaymentDto TestCard(string number = "4242 4242 4242 4242") => new()
@@ -141,58 +140,83 @@ namespace MyProject.Tests
             // הטרנזקציה לא נסגרת ב-Commit, ולכן היא מתבטלת
             _transaction.Verify(t => t.CommitAsync(It.IsAny<CancellationToken>()), Times.Never);
             _transaction.Verify(t => t.DisposeAsync(), Times.Once);
-            // מי שהפסיד במרוץ חויב לפני השמירה, ולכן מקבל את הכסף בחזרה
-            _payments.Verify(p => p.RefundAsync("SIM-TEST", 3240, It.IsAny<CancellationToken>()), Times.Once);
+        }
+
+        // השכרה של 3 ימים (72 שעות × 45 בהנחה = 3240) שעוד לא שולמה
+        private MyProject.Core.Entities.Rental SetupUnpaidRental(int customerId = 1)
+        {
+            var rental = new MyProject.Core.Entities.Rental
+            {
+                Id = 7, CarId = _car.Id, CustomerId = customerId,
+                DateStart = Request().DateStart, DateEnd = Request().DateEnd
+            };
+            _rentals.Setup(r => r.GetForUpdateAsync(7, It.IsAny<CancellationToken>())).ReturnsAsync(rental);
+            _cars.Setup(r => r.GetByIdAsync(_car.Id, It.IsAny<CancellationToken>())).ReturnsAsync(_car);
+            return rental;
         }
 
         [Fact]
-        public async Task Create_Paid_StoresAmountAndOnlyLast4Digits()
+        public async Task Pay_Approved_StoresAmountAndOnlyLast4Digits()
         {
-            SetupOverlap(false);
+            var rental = SetupUnpaidRental();
 
-            var result = await CreateService().CreateAsync(Request(), default);
+            var result = await CreateService().PayAsync(7, TestCard(), default);
 
             Assert.True(result.IsSuccess);
-            // הסכום מחושב בשרת: 72 שעות × 45
+            // הסכום מחושב בשרת לפי מחיר הרכב
             _payments.Verify(p => p.ChargeAsync(It.IsAny<PaymentDto>(), 3240, It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Once);
-            _rentals.Verify(r => r.Add(It.Is<MyProject.Core.Entities.Rental>(x =>
-                x.AmountPaid == 3240 && x.CardLast4 == "4242" && x.PaymentReference == "SIM-TEST" && x.PaidAt != null)), Times.Once);
+            Assert.Equal(3240, rental.AmountPaid);
+            Assert.Equal("4242", rental.CardLast4);
+            Assert.Equal("SIM-TEST", rental.PaymentReference);
+            _rentals.Verify(r => r.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
         }
 
         [Fact]
-        public async Task Create_CardDeclined_ReturnsPaymentDeclinedWithoutSaving()
+        public async Task Pay_CardDeclined_ReturnsPaymentDeclinedWithoutSaving()
         {
-            SetupOverlap(false);
+            SetupUnpaidRental();
             _payments.Setup(p => p.ChargeAsync(It.IsAny<PaymentDto>(), It.IsAny<int>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
                 .ReturnsAsync(PaymentResult.Declined("אין מספיק יתרה בכרטיס"));
 
-            var result = await CreateService().CreateAsync(Request(), default);
+            var result = await CreateService().PayAsync(7, TestCard(), default);
 
             Assert.Equal(ResultStatus.PaymentDeclined, result.Status);
-            _rentals.Verify(r => r.Add(It.IsAny<MyProject.Core.Entities.Rental>()), Times.Never);
             _rentals.Verify(r => r.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Never);
         }
 
         [Fact]
-        public async Task Create_CarAlreadyBooked_DoesNotCharge()
+        public async Task Pay_AlreadyPaid_ReturnsConflictWithoutCharging()
         {
-            SetupOverlap(true);
+            SetupUnpaidRental().PaymentReference = "SIM-OLD";
 
-            await CreateService().CreateAsync(Request(), default);
+            var result = await CreateService().PayAsync(7, TestCard(), default);
 
+            Assert.Equal(ResultStatus.Conflict, result.Status);
             _payments.Verify(p => p.ChargeAsync(It.IsAny<PaymentDto>(), It.IsAny<int>(), It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
         }
 
         [Fact]
-        public async Task Create_WithoutPayment_ReturnsInvalid()
+        public async Task Pay_PaidConcurrently_RefundsAndReturnsConflict()
         {
-            var request = Request();
-            request.Payment = null;
+            SetupUnpaidRental();
+            _rentals.Setup(r => r.SaveChangesAsync(It.IsAny<CancellationToken>()))
+                .ThrowsAsync(new ConcurrencyConflictException("conflict", new Exception()));
 
-            var result = await CreateService().CreateAsync(request, default);
+            var result = await CreateService().PayAsync(7, TestCard(), default);
 
-            Assert.Equal(ResultStatus.Invalid, result.Status);
-            _rentals.Verify(r => r.Add(It.IsAny<MyProject.Core.Entities.Rental>()), Times.Never);
+            Assert.Equal(ResultStatus.Conflict, result.Status);
+            _payments.Verify(p => p.RefundAsync("SIM-TEST", 3240, It.IsAny<CancellationToken>()), Times.Once);
+        }
+
+        [Fact]
+        public async Task Pay_RentalOfAnotherCustomer_ReturnsForbidden()
+        {
+            SetupUnpaidRental(customerId: 2);
+
+            var result = await CreateService().PayAsync(7, TestCard(), default);
+
+            Assert.Equal(ResultStatus.Forbidden, result.Status);
+            _payments.Verify(p => p.ChargeAsync(It.IsAny<PaymentDto>(), It.IsAny<int>(), It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
         }
 
         [Fact]

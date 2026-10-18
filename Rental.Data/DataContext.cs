@@ -115,7 +115,8 @@ namespace MyProject.Data
                 rental.Property(r => r.DateEnd).HasColumnType("timestamp without time zone");
 
                 rental.Property(r => r.CardLast4).HasMaxLength(4);
-                rental.Property(r => r.PaymentReference).HasMaxLength(40);
+                // concurrency token: מונע תשלום כפול על אותה השכרה בשתי בקשות מקבילות
+                rental.Property(r => r.PaymentReference).HasMaxLength(40).IsConcurrencyToken();
             });
 
             // ב-PostgreSQL הכנסה עם Id מפורש (נתוני ה-Seed) לא מקדמת את מונה ה-identity.

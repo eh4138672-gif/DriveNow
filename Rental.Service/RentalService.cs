@@ -94,12 +94,7 @@ namespace MyProject.Services
             {
                 return Result<RentalDto>.Invalid("לא ניתן להזמין רכב למועד שכבר עבר");
             }
-            if (dto.Payment == null)
-            {
-                return Result<RentalDto>.Invalid("יש להזין פרטי כרטיס אשראי לתשלום על ההזמנה");
-            }
-
-            var booking = await TryBookAsync(dto, null, dto.Payment, ct);
+            var booking = await TryBookAsync(dto, null, ct);
             if (!booking.IsSuccess)
             {
                 return Result<RentalDto>.FromFailure(booking);
@@ -132,8 +127,7 @@ namespace MyProject.Services
                 return Result.Invalid("לא ניתן להזיז השכרה למועד שכבר עבר");
             }
 
-            // עדכון לא מחייב שוב: התשלום המקורי נשאר כפי שהוא
-            var booking = await TryBookAsync(dto, id, null, ct);
+            var booking = await TryBookAsync(dto, id, ct);
             return booking.IsSuccess ? Result.Success() : booking;
         }
 
@@ -195,10 +189,54 @@ namespace MyProject.Services
                 : Result<int>.Success(customerId.Value);
         }
 
-        // יוצר השכרה חדשה (rentalId == null) או מעדכן קיימת, תוך שמירה על הרכב כמשאב מוגבל.
-        // כשיש payment, החיוב מתבצע אחרי בדיקת הזמינות ולפני השמירה. אם השמירה נכשלת
-        // (למשל מישהו אחר תפס את הרכב באותו רגע) - החיוב מבוטל, כך שאף אחד לא משלם על הזמנה שלא נשמרה
-        private async Task<Result<Rental>> TryBookAsync(RentalRequestDto dto, int? rentalId, PaymentDto? payment, CancellationToken ct)
+        // תשלום על השכרה קיימת, בנפרד מההזמנה. הסכום מחושב כאן בשרת לפי מחיר הרכב.
+        // PaymentReference הוא concurrency token: אם שתי בקשות תשלום רצות במקביל, רק אחת נשמרת,
+        // והשנייה מקבלת 409 והחיוב שלה מבוטל - כך אי אפשר לשלם פעמיים על אותה השכרה
+        public async Task<Result<RentalDto>> PayAsync(int id, PaymentDto payment, CancellationToken ct)
+        {
+            var rental = await _rentals.GetForUpdateAsync(id, ct);
+            if (rental == null)
+            {
+                return Result<RentalDto>.NotFound($"השכרה {id} לא נמצאה");
+            }
+            if (!CanAccess(rental))
+            {
+                return Result<RentalDto>.Forbidden("אין לך הרשאה לשלם על ההשכרה הזאת");
+            }
+            if (rental.PaymentReference != null)
+            {
+                return Result<RentalDto>.Conflict("ההשכרה הזאת כבר שולמה");
+            }
+
+            var car = await _cars.GetByIdAsync(rental.CarId, ct);
+            var amount = RentalPricing.TotalPrice(car!.PricePerHour, rental.DateStart, rental.DateEnd);
+            var charge = await _payments.ChargeAsync(payment, amount, $"Rental {id}", ct);
+            if (!charge.Approved)
+            {
+                return Result<RentalDto>.PaymentDeclined($"התשלום נדחה: {charge.DeclineReason}");
+            }
+
+            // מהכרטיס נשמרות רק 4 הספרות האחרונות
+            rental.AmountPaid = amount;
+            rental.CardLast4 = payment.Last4;
+            rental.PaymentReference = charge.Reference;
+            rental.PaidAt = DateTime.UtcNow;
+            try
+            {
+                await _rentals.SaveChangesAsync(ct);
+            }
+            catch (ConcurrencyConflictException)
+            {
+                await _payments.RefundAsync(charge.Reference!, amount, CancellationToken.None);
+                return Result<RentalDto>.Conflict("ההשכרה שולמה או בוטלה במקביל. לא חויבת.");
+            }
+
+            _logger.LogInformation("Rental {RentalId} paid {Amount}", id, amount);
+            return Result<RentalDto>.Success(_mapper.Map<RentalDto>(await _rentals.GetByIdAsync(id, ct)));
+        }
+
+        // יוצר השכרה חדשה (rentalId == null) או מעדכן קיימת, תוך שמירה על הרכב כמשאב מוגבל
+        private async Task<Result<Rental>> TryBookAsync(RentalRequestDto dto, int? rentalId, CancellationToken ct)
         {
             // שלב 1: הרכב נטען עם מעקב, וה-Version שלו נשמר כערך המקורי
             var car = await _cars.GetForUpdateAsync(dto.CarId, ct);
@@ -230,18 +268,6 @@ namespace MyProject.Services
                 return Result<Rental>.Conflict("הרכב כבר מוזמן בחלק מהתאריכים האלה");
             }
 
-            // תשלום. הסכום מחושב כאן בשרת לפי מחיר הרכב, ולא נלקח מהדפדפן
-            PaymentResult? charge = null;
-            var amount = RentalPricing.TotalPrice(car.PricePerHour, start, end);
-            if (payment != null)
-            {
-                charge = await _payments.ChargeAsync(payment, amount, $"Car {car.LicenseNumber}", ct);
-                if (!charge.Approved)
-                {
-                    return Result<Rental>.PaymentDeclined($"התשלום נדחה: {charge.DeclineReason}");
-                }
-            }
-
             // שלב 3
             Rental rental;
             if (rentalId == null)
@@ -257,13 +283,6 @@ namespace MyProject.Services
             rental.CustomerId = customerId;
             rental.DateStart = start;
             rental.DateEnd = end;
-            if (charge != null)
-            {
-                rental.AmountPaid = amount;
-                rental.CardLast4 = payment!.Last4;
-                rental.PaymentReference = charge.Reference;
-                rental.PaidAt = DateTime.UtcNow;
-            }
 
             // נוגעים ברכב כדי שה-UPDATE שלו (עם בדיקת ה-Version) ייכנס לאותה טרנזקציה
             car.LastBookedAt = DateTime.UtcNow;
@@ -279,25 +298,10 @@ namespace MyProject.Services
                 _logger.LogWarning(
                     "Booking conflict on car {CarId} for {Start:yyyy-MM-dd} - {End:yyyy-MM-dd}: another booking was saved first",
                     car.Id, start, end);
-                await RefundAsync(charge, amount);
-                return Result<Rental>.Conflict("הרכב נתפס על ידי משתמש אחר ממש עכשיו. בחר תאריכים אחרים או נסה שוב. לא חויבת.");
-            }
-            catch
-            {
-                await RefundAsync(charge, amount);
-                throw;
+                return Result<Rental>.Conflict("הרכב נתפס על ידי משתמש אחר ממש עכשיו. בחר תאריכים אחרים או נסה שוב.");
             }
 
             return Result<Rental>.Success(rental);
-        }
-
-        // ביטול חיוב של הזמנה שלא נשמרה. CancellationToken.None: הזיכוי חייב לקרות גם אם הבקשה בוטלה
-        private async Task RefundAsync(PaymentResult? charge, int amount)
-        {
-            if (charge?.Reference != null)
-            {
-                await _payments.RefundAsync(charge.Reference, amount, CancellationToken.None);
-            }
         }
     }
 }
